@@ -21,6 +21,18 @@ function preserveTokenQuery(parsed: URL): void {
   }
 }
 
+function normalizeGatewayPath(pathname: string): string {
+  const path = String(pathname || '/').trim() || '/'
+  if (
+    path === '/sessions' ||
+    path === '/sessions/' ||
+    path.startsWith('/sessions/')
+  ) {
+    return '/'
+  }
+  return path === '/' ? '/' : path.replace(/\/+$/, '')
+}
+
 function formatWebSocketUrl(parsed: URL): string {
   return parsed.toString().replace(/\/$/, '').replace('/?', '?')
 }
@@ -50,8 +62,8 @@ export function buildGatewayWebSocketUrl(input: {
     try {
       const parsed = new URL(prefixed)
       parsed.protocol = normalizeProtocol(parsed.protocol)
-      // Users often paste dashboard/session URLs; websocket connect should target gateway root.
-      parsed.pathname = '/'
+      // Keep explicit proxy paths (e.g. /gw), but collapse known dashboard/session routes to root.
+      parsed.pathname = normalizeGatewayPath(parsed.pathname)
       preserveTokenQuery(parsed)
       parsed.hash = ''
       return formatWebSocketUrl(parsed)

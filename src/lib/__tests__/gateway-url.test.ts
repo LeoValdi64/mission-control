@@ -41,4 +41,12 @@ describe('buildGatewayWebSocketUrl', () => {
       browserProtocol: 'https:',
     })).toBe('wss://bill.tail8b4599.ts.net:4443?token=abc123')
   })
+
+  it('preserves explicit proxy path when configured', () => {
+    expect(buildGatewayWebSocketUrl({
+      host: 'https://gateway.example.com/gw',
+      port: 18789,
+      browserProtocol: 'https:',
+    })).toBe('wss://gateway.example.com/gw')
+  })
 })
