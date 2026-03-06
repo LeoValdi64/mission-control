@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useMissionControl } from '@/store'
-import { useNavigateToPanel } from '@/lib/navigation'
+import { useNavigateToPanel, usePrefetchPanel } from '@/lib/navigation'
 import { Button } from '@/components/ui/button'
+import { APP_VERSION } from '@/lib/version'
 
 interface NavItem {
   id: string
@@ -52,6 +53,7 @@ const navGroups: NavGroup[] = [
     items: [
       { id: 'cron', label: 'Cron', icon: <CronIcon />, priority: false },
       { id: 'spawn', label: 'Spawn', icon: <SpawnIcon />, priority: false },
+      { id: 'skills', label: 'Skills', icon: <SkillsIcon />, priority: false },
       { id: 'webhooks', label: 'Webhooks', icon: <WebhookIcon />, priority: false },
       { id: 'alerts', label: 'Alerts', icon: <AlertIcon />, priority: false },
       { id: 'github', label: 'GitHub', icon: <GitHubIcon />, priority: false },
@@ -83,6 +85,7 @@ const adminOnlyPanels = new Set<string>([])
 export function NavRail() {
   const { activeTab, connection, dashboardMode, currentUser, activeTenant, tenants, osUsers, setActiveTenant, fetchTenants, fetchOsUsers, activeProject, projects, setActiveProject, fetchProjects, sidebarExpanded, collapsedGroups, toggleSidebar, toggleGroup, defaultOrgName } = useMissionControl()
   const navigateToPanel = useNavigateToPanel()
+  const prefetchPanel = usePrefetchPanel()
   const isLocal = dashboardMode === 'local'
   const isAdmin = currentUser?.role === 'admin'
   const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set())
@@ -165,7 +168,10 @@ export function NavRail() {
             <img src="/brand/mc-logo-128.png" alt="Mission Control logo" className="w-full h-full object-cover" />
           </div>
           {sidebarExpanded && (
-            <span className="text-sm font-semibold text-foreground truncate flex-1">Mission Control</span>
+            <div className="flex items-baseline gap-2 truncate flex-1 min-w-0">
+              <span className="text-sm font-semibold text-foreground truncate">Mission Control</span>
+              <span className="text-2xs text-muted-foreground font-mono-tight shrink-0">v{APP_VERSION}</span>
+            </div>
           )}
           <Button
             variant="ghost"
@@ -239,6 +245,7 @@ export function NavRail() {
                             active={childActive}
                             expanded={false}
                             onClick={() => navigateToPanel(item.children![0].id)}
+                            onPrefetch={() => item.children?.forEach(child => prefetchPanel(child.id))}
                           />
                         )
                       }
@@ -247,6 +254,8 @@ export function NavRail() {
                           <Button
                             variant="ghost"
                             onClick={() => toggleParent(item.id)}
+                            onMouseEnter={() => item.children?.forEach(child => prefetchPanel(child.id))}
+                            onFocus={() => item.children?.forEach(child => prefetchPanel(child.id))}
                             className={`w-full flex items-center gap-2 px-2 py-1.5 h-auto rounded-lg text-left justify-start relative ${
                               childActive && !isParentExpanded
                                 ? 'bg-primary/15 text-primary hover:bg-primary/20'
@@ -282,6 +291,7 @@ export function NavRail() {
                                   active={activeTab === child.id}
                                   expanded={true}
                                   onClick={() => navigateToPanel(child.id)}
+                                  onPrefetch={() => prefetchPanel(child.id)}
                                   nested
                                 />
                               ))}
@@ -297,6 +307,7 @@ export function NavRail() {
                         active={activeTab === item.id}
                         expanded={sidebarExpanded}
                         onClick={() => navigateToPanel(item.id)}
+                        onPrefetch={() => prefetchPanel(item.id)}
                       />
                     )
                   })}
@@ -363,11 +374,12 @@ export function NavRail() {
   )
 }
 
-function NavButton({ item, active, expanded, onClick, nested }: {
+function NavButton({ item, active, expanded, onClick, onPrefetch, nested }: {
   item: NavItem
   active: boolean
   expanded: boolean
   onClick: () => void
+  onPrefetch?: () => void
   nested?: boolean
 }) {
   if (expanded) {
@@ -375,6 +387,8 @@ function NavButton({ item, active, expanded, onClick, nested }: {
       <Button
         variant="ghost"
         onClick={onClick}
+        onMouseEnter={onPrefetch}
+        onFocus={onPrefetch}
         aria-current={active ? 'page' : undefined}
         className={`w-full flex items-center gap-2 px-2 h-auto rounded-lg text-left justify-start relative ${
           nested ? 'py-1' : 'py-1.5'
@@ -398,6 +412,8 @@ function NavButton({ item, active, expanded, onClick, nested }: {
       variant="ghost"
       size="icon-lg"
       onClick={onClick}
+      onMouseEnter={onPrefetch}
+      onFocus={onPrefetch}
       title={item.label}
       aria-current={active ? 'page' : undefined}
       className={`rounded-lg group relative ${
@@ -1203,6 +1219,15 @@ function GitHubIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 12.5c-3 1-3-1.5-4-2m8 4v-2.2a2.1 2.1 0 00-.6-1.6c2-.2 4.1-1 4.1-4.5a3.5 3.5 0 00-1-2.4 3.2 3.2 0 00-.1-2.4s-.8-.2-2.5 1a8.7 8.7 0 00-4.6 0C3.7 3.4 2.9 3.6 2.9 3.6a3.2 3.2 0 00-.1 2.4 3.5 3.5 0 00-1 2.4c0 3.5 2.1 4.3 4.1 4.5a2.1 2.1 0 00-.6 1.6v2.2" />
+    </svg>
+  )
+}
+
+function SkillsIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="2" width="12" height="12" rx="1.5" />
+      <path d="M5 5h6M5 8h6M5 11h3" />
     </svg>
   )
 }

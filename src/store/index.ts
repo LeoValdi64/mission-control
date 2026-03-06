@@ -273,11 +273,14 @@ export interface CurrentUser {
   username: string
   display_name: string
   role: 'admin' | 'operator' | 'viewer'
+  workspace_id?: number
+  tenant_id?: number
   provider?: 'local' | 'google'
   email?: string | null
   avatar_url?: string | null
 }
 
+// Billing/provisioning entity that can own multiple Mission Control workspaces.
 export interface Tenant {
   id: number
   slug: string
@@ -495,11 +498,13 @@ interface MissionControlStore {
   sidebarExpanded: boolean
   collapsedGroups: string[]
   liveFeedOpen: boolean
+  headerDensity: 'focus' | 'compact'
   setActiveTab: (tab: string) => void
   toggleSidebar: () => void
   setSidebarExpanded: (expanded: boolean) => void
   toggleGroup: (groupId: string) => void
   toggleLiveFeed: () => void
+  setHeaderDensity: (mode: 'focus' | 'compact') => void
 }
 
 export const useMissionControl = create<MissionControlStore>()(
@@ -764,6 +769,13 @@ export const useMissionControl = create<MissionControlStore>()(
       if (typeof window === 'undefined') return true
       try { return localStorage.getItem('mc-livefeed-open') !== 'false' } catch { return true }
     })(),
+    headerDensity: (() => {
+      if (typeof window === 'undefined') return 'focus' as const
+      try {
+        const raw = localStorage.getItem('mc-header-density')
+        return raw === 'compact' ? 'compact' : 'focus'
+      } catch { return 'focus' as const }
+    })(),
     setActiveTab: (tab) => set({ activeTab: tab }),
     toggleSidebar: () =>
       set((state) => {
@@ -789,6 +801,10 @@ export const useMissionControl = create<MissionControlStore>()(
         try { localStorage.setItem('mc-livefeed-open', String(next)) } catch {}
         return { liveFeedOpen: next }
       }),
+    setHeaderDensity: (mode) => {
+      try { localStorage.setItem('mc-header-density', mode) } catch {}
+      set({ headerDensity: mode })
+    },
 
     // Mission Control Phase 2 - Tasks
     tasks: [],

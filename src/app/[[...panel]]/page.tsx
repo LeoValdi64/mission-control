@@ -31,6 +31,8 @@ import { MultiGatewayPanel } from '@/components/panels/multi-gateway-panel'
 import { SuperAdminPanel } from '@/components/panels/super-admin-panel'
 import { OfficePanel } from '@/components/panels/office-panel'
 import { GitHubSyncPanel } from '@/components/panels/github-sync-panel'
+import { SkillsPanel } from '@/components/panels/skills-panel'
+import { LocalAgentsDocPanel } from '@/components/panels/local-agents-doc-panel'
 import { ChatPagePanel } from '@/components/panels/chat-page-panel'
 import { ChatPanel } from '@/components/chat/chat-panel'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -39,6 +41,7 @@ import { UpdateBanner } from '@/components/layout/update-banner'
 import { ProjectManagerModal } from '@/components/modals/project-manager-modal'
 import { useWebSocket } from '@/lib/websocket'
 import { useServerEvents } from '@/lib/use-server-events'
+import { completeNavigationTiming } from '@/lib/navigation-metrics'
 import { useMissionControl } from '@/store'
 
 interface GatewaySummary {
@@ -59,6 +62,10 @@ export default function Home() {
   const pathname = usePathname()
   const panelFromUrl = pathname === '/' ? 'overview' : pathname.slice(1)
   const normalizedPanel = panelFromUrl === 'sessions' ? 'chat' : panelFromUrl
+
+  useEffect(() => {
+    completeNavigationTiming(pathname)
+  }, [pathname])
 
   useEffect(() => {
     setActiveTab(normalizedPanel)
@@ -297,6 +304,7 @@ function ContentRouter({ tab }: { tab: string }) {
       return (
         <>
           <OrchestrationBar />
+          {isLocal && <LocalAgentsDocPanel />}
           <AgentSquadPanelPhase3 />
           {!isLocal && (
             <div className="mt-4 mx-4 mb-4 rounded-lg border border-border bg-card overflow-hidden">
@@ -352,6 +360,8 @@ function ContentRouter({ tab }: { tab: string }) {
       return <GitHubSyncPanel />
     case 'office':
       return <OfficePanel />
+    case 'skills':
+      return <SkillsPanel />
     case 'chat':
       return <ChatPagePanel />
     default:

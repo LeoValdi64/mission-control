@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 const VERSION = '1.3.0'
+export const revalidate = 300
 
 interface Endpoint {
   path: string
@@ -21,6 +22,7 @@ const endpoints: Endpoint[] = [
   { path: '/api/tasks/regression', methods: ['GET'], description: 'Task regression detection', tag: 'Tasks', auth: 'viewer' },
 
   // ── Projects ──────────────────────────────────────
+  { path: '/api/workspaces', methods: ['GET'], description: 'Tenant-scoped workspace listing', tag: 'Projects', auth: 'viewer' },
   { path: '/api/projects', methods: ['GET', 'POST'], description: 'Project CRUD — list, create', tag: 'Projects', auth: 'viewer/operator' },
   { path: '/api/projects/:id', methods: ['GET', 'PATCH', 'DELETE'], description: 'Project detail — read, update, archive/delete', tag: 'Projects', auth: 'viewer/operator/admin' },
   { path: '/api/projects/:id/tasks', methods: ['GET'], description: 'Tasks scoped to project', tag: 'Projects', auth: 'viewer' },
@@ -44,10 +46,13 @@ const endpoints: Endpoint[] = [
   { path: '/api/chat/messages', methods: ['GET', 'POST'], description: 'Chat messages — list, send', tag: 'Chat', auth: 'viewer/operator' },
   { path: '/api/chat/messages/:id', methods: ['PATCH'], description: 'Mark chat message read', tag: 'Chat', auth: 'operator' },
   { path: '/api/chat/conversations', methods: ['GET'], description: 'List conversations', tag: 'Chat', auth: 'viewer' },
+  { path: '/api/chat/session-prefs', methods: ['GET', 'PATCH'], description: 'Local session chat preferences (rename + color)', tag: 'Chat', auth: 'viewer/operator' },
 
   // ── Sessions ──────────────────────────────────────
   { path: '/api/sessions', methods: ['GET'], description: 'List gateway sessions', tag: 'Sessions', auth: 'viewer' },
   { path: '/api/sessions/:id/control', methods: ['POST'], description: 'Session control (stop, message)', tag: 'Sessions', auth: 'operator' },
+  { path: '/api/sessions/continue', methods: ['POST'], description: 'Continue a local Claude/Codex session with a prompt', tag: 'Sessions', auth: 'operator' },
+  { path: '/api/sessions/transcript', methods: ['GET'], description: 'Read local Claude/Codex session transcript snippets', tag: 'Sessions', auth: 'viewer' },
   { path: '/api/claude/sessions', methods: ['GET'], description: 'Claude CLI session scanner', tag: 'Sessions', auth: 'viewer' },
 
   // ── Activities & Notifications ────────────────────
@@ -105,6 +110,7 @@ const endpoints: Endpoint[] = [
   // ── Settings ──────────────────────────────────────
   { path: '/api/settings', methods: ['GET', 'PATCH'], description: 'System settings', tag: 'Settings', auth: 'viewer/admin' },
   { path: '/api/integrations', methods: ['GET', 'PATCH'], description: 'Integration configuration', tag: 'Settings', auth: 'viewer/admin' },
+  { path: '/api/skills', methods: ['GET', 'POST', 'PUT', 'DELETE'], description: 'Installed skills index and disk CRUD', tag: 'Settings', auth: 'viewer/operator' },
 
   // ── Gateway ───────────────────────────────────────
   { path: '/api/gateways', methods: ['GET', 'POST', 'PATCH', 'DELETE'], description: 'Gateway management', tag: 'Gateway', auth: 'admin' },
@@ -135,6 +141,7 @@ const endpoints: Endpoint[] = [
 
   // ── Local ─────────────────────────────────────────
   { path: '/api/local/flight-deck', methods: ['GET'], description: 'Local flight deck status', tag: 'Local', auth: 'viewer' },
+  { path: '/api/local/agents-doc', methods: ['GET'], description: 'Local AGENTS.md discovery and content', tag: 'Local', auth: 'viewer' },
   { path: '/api/local/terminal', methods: ['POST'], description: 'Local terminal command', tag: 'Local', auth: 'admin' },
 
   // ── Docs ──────────────────────────────────────────
@@ -147,21 +154,27 @@ const endpoints: Endpoint[] = [
   { path: '/api/index', methods: ['GET'], description: 'API endpoint catalog (this endpoint)', tag: 'Discovery', auth: 'public' },
 ]
 
+const payload = {
+  version: VERSION,
+  generated_at: new Date().toISOString(),
+  total_endpoints: endpoints.length,
+  endpoints,
+  event_stream: {
+    path: '/api/events',
+    protocol: 'SSE',
+    description: 'Real-time server-sent events for tasks, agents, chat, and activity updates',
+  },
+  docs: {
+    openapi: '/api/docs',
+    tree: '/api/docs/tree',
+    search: '/api/docs/search',
+  },
+}
+
 export async function GET() {
-  return NextResponse.json({
-    version: VERSION,
-    generated_at: new Date().toISOString(),
-    total_endpoints: endpoints.length,
-    endpoints,
-    event_stream: {
-      path: '/api/events',
-      protocol: 'SSE',
-      description: 'Real-time server-sent events for tasks, agents, chat, and activity updates',
-    },
-    docs: {
-      openapi: '/api/docs',
-      tree: '/api/docs/tree',
-      search: '/api/docs/search',
+  return NextResponse.json(payload, {
+    headers: {
+      'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
     },
   })
 }

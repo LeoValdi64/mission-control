@@ -3,6 +3,10 @@ import { getDatabase } from '@/lib/db'
 import { requireRole } from '@/lib/auth'
 import { mutationLimiter } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
+import {
+  ensureTenantWorkspaceAccess,
+  ForbiddenError
+} from '@/lib/workspaces'
 
 function normalizePrefix(input: string): string {
   const normalized = input.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
@@ -24,9 +28,26 @@ export async function GET(
   try {
     const db = getDatabase()
     const workspaceId = auth.user.workspace_id ?? 1
+    const tenantId = auth.user.tenant_id ?? 1
+    const forwardedFor = (request.headers.get('x-forwarded-for') || '').split(',')[0]?.trim() || null
+    ensureTenantWorkspaceAccess(db, tenantId, workspaceId, {
+      actor: auth.user.username,
+      actorId: auth.user.id,
+      route: '/api/projects/[id]',
+      ipAddress: forwardedFor,
+      userAgent: request.headers.get('user-agent'),
+    })
     const { id } = await params
     const projectId = toProjectId(id)
     if (Number.isNaN(projectId)) return NextResponse.json({ error: 'Invalid project ID' }, { status: 400 })
+    const projectScope = db.prepare(`
+      SELECT p.id
+      FROM projects p
+      JOIN workspaces w ON w.id = p.workspace_id
+      WHERE p.id = ? AND p.workspace_id = ? AND w.tenant_id = ?
+      LIMIT 1
+    `).get(projectId, workspaceId, tenantId)
+    if (!projectScope) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
     const row = db.prepare(`
       SELECT p.id, p.workspace_id, p.name, p.slug, p.description, p.ticket_prefix, p.ticket_counter, p.status,
@@ -46,6 +67,9 @@ export async function GET(
 
     return NextResponse.json({ project })
   } catch (error) {
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
     logger.error({ err: error }, 'GET /api/projects/[id] error')
     return NextResponse.json({ error: 'Failed to fetch project' }, { status: 500 })
   }
@@ -64,9 +88,26 @@ export async function PATCH(
   try {
     const db = getDatabase()
     const workspaceId = auth.user.workspace_id ?? 1
+    const tenantId = auth.user.tenant_id ?? 1
+    const forwardedFor = (request.headers.get('x-forwarded-for') || '').split(',')[0]?.trim() || null
+    ensureTenantWorkspaceAccess(db, tenantId, workspaceId, {
+      actor: auth.user.username,
+      actorId: auth.user.id,
+      route: '/api/projects/[id]',
+      ipAddress: forwardedFor,
+      userAgent: request.headers.get('user-agent'),
+    })
     const { id } = await params
     const projectId = toProjectId(id)
     if (Number.isNaN(projectId)) return NextResponse.json({ error: 'Invalid project ID' }, { status: 400 })
+    const projectScope = db.prepare(`
+      SELECT p.id
+      FROM projects p
+      JOIN workspaces w ON w.id = p.workspace_id
+      WHERE p.id = ? AND p.workspace_id = ? AND w.tenant_id = ?
+      LIMIT 1
+    `).get(projectId, workspaceId, tenantId)
+    if (!projectScope) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
     const current = db.prepare(`SELECT * FROM projects WHERE id = ? AND workspace_id = ?`).get(projectId, workspaceId) as any
     if (!current) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
@@ -151,6 +192,9 @@ export async function PATCH(
 
     return NextResponse.json({ project })
   } catch (error) {
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
     logger.error({ err: error }, 'PATCH /api/projects/[id] error')
     return NextResponse.json({ error: 'Failed to update project' }, { status: 500 })
   }
@@ -169,9 +213,26 @@ export async function DELETE(
   try {
     const db = getDatabase()
     const workspaceId = auth.user.workspace_id ?? 1
+    const tenantId = auth.user.tenant_id ?? 1
+    const forwardedFor = (request.headers.get('x-forwarded-for') || '').split(',')[0]?.trim() || null
+    ensureTenantWorkspaceAccess(db, tenantId, workspaceId, {
+      actor: auth.user.username,
+      actorId: auth.user.id,
+      route: '/api/projects/[id]',
+      ipAddress: forwardedFor,
+      userAgent: request.headers.get('user-agent'),
+    })
     const { id } = await params
     const projectId = toProjectId(id)
     if (Number.isNaN(projectId)) return NextResponse.json({ error: 'Invalid project ID' }, { status: 400 })
+    const projectScope = db.prepare(`
+      SELECT p.id
+      FROM projects p
+      JOIN workspaces w ON w.id = p.workspace_id
+      WHERE p.id = ? AND p.workspace_id = ? AND w.tenant_id = ?
+      LIMIT 1
+    `).get(projectId, workspaceId, tenantId)
+    if (!projectScope) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
     const current = db.prepare(`SELECT * FROM projects WHERE id = ? AND workspace_id = ?`).get(projectId, workspaceId) as any
     if (!current) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
@@ -205,6 +266,9 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, mode: 'delete' })
   } catch (error) {
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
     logger.error({ err: error }, 'DELETE /api/projects/[id] error')
     return NextResponse.json({ error: 'Failed to delete project' }, { status: 500 })
   }

@@ -4,9 +4,12 @@ import { logAuditEvent } from '@/lib/db'
 import { config } from '@/lib/config'
 import { join } from 'path'
 import { readFile, writeFile, rename } from 'fs/promises'
+import { existsSync } from 'fs'
+import os from 'os'
 import { execFileSync } from 'child_process'
 import { validateBody, integrationActionSchema } from '@/lib/validation'
 import { mutationLimiter } from '@/lib/rate-limit'
+import { detectProviderSubscriptions } from '@/lib/provider-subscriptions'
 
 // ---------------------------------------------------------------------------
 // Integration registry
@@ -19,7 +22,18 @@ interface IntegrationDef {
   envVars: string[]
   vaultItem?: string // 1Password item name
   testable?: boolean
+  recommendation?: string
 }
+
+interface IntegrationProbeSnapshot {
+  opAvailable: boolean
+  xint: { installed: boolean; oauthConfigured: boolean; envConfigured: boolean }
+  ollamaInstalled: boolean
+  ollamaReachable: boolean
+}
+
+let integrationProbeCache: { ts: number; value: IntegrationProbeSnapshot } | null = null
+const INTEGRATION_PROBE_TTL_MS = 5000
 
 const INTEGRATIONS: IntegrationDef[] = [
   // AI Providers
@@ -34,7 +48,13 @@ const INTEGRATIONS: IntegrationDef[] = [
   { id: 'brave', name: 'Brave Search', category: 'search', envVars: ['BRAVE_API_KEY'], vaultItem: 'openclaw-brave-api-key' },
 
   // Social
-  { id: 'x_twitter', name: 'X / Twitter', category: 'social', envVars: ['X_COOKIES_PATH'] },
+  {
+    id: 'x_twitter',
+    name: 'X / Twitter',
+    category: 'social',
+    envVars: ['X_COOKIES_PATH'],
+    recommendation: 'Recommended: use xint CLI as default (`xint auth`) instead of manual cookies path.',
+  },
   { id: 'linkedin', name: 'LinkedIn', category: 'social', envVars: ['LINKEDIN_ACCESS_TOKEN'] },
 
   // Messaging — add entries here for each Telegram bot you run
@@ -142,6 +162,94 @@ function isVarBlocked(key: string): boolean {
   return BLOCKED_PREFIXES.some(p => key.startsWith(p))
 }
 
+function getEffectiveEnvValue(envMap: Map<string, string>, key: string): string {
+  const fromFile = envMap.get(key)
+  if (typeof fromFile === 'string' && fromFile.length > 0) return fromFile
+  const fromProcess = process.env[key]
+  if (typeof fromProcess === 'string' && fromProcess.length > 0) return fromProcess
+  return ''
+}
+
+function isPathLikeEnvVar(key: string): boolean {
+  return key.endsWith('_PATH') || key.endsWith('_FILE')
+}
+
+function isConfiguredValue(key: string, value: string): boolean {
+  if (!value || value.length === 0) return false
+  if (isPathLikeEnvVar(key)) {
+    try {
+      return existsSync(value)
+    } catch {
+      return false
+    }
+  }
+  return true
+}
+
+function checkOpAuthenticated(opEnv?: NodeJS.ProcessEnv): boolean {
+  try {
+    execFileSync('op', ['whoami', '--format', 'json'], {
+      stdio: 'pipe',
+      timeout: 3000,
+      env: opEnv || process.env,
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
+function checkCommandAvailable(command: string): boolean {
+  try {
+    execFileSync('which', [command], { stdio: 'pipe', timeout: 3000 })
+    return true
+  } catch {
+    return false
+  }
+}
+
+function checkXintState(): { installed: boolean; oauthConfigured: boolean; envConfigured: boolean } {
+  const installed = checkCommandAvailable('xint')
+  const oauthPath = join(os.homedir(), '.xint', 'data', 'oauth-tokens.json')
+  const envPath = join(os.homedir(), '.xint', '.env')
+  const oauthConfigured = existsSync(oauthPath)
+  const envConfigured = existsSync(envPath)
+  return { installed, oauthConfigured, envConfigured }
+}
+
+function resolveOllamaBaseUrl(): string {
+  const raw = String(process.env.OLLAMA_HOST || '').trim()
+  if (!raw) return 'http://127.0.0.1:11434'
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+  return `http://${raw}`
+}
+
+async function checkOllamaReachable(): Promise<boolean> {
+  try {
+    const base = resolveOllamaBaseUrl().replace(/\/+$/, '')
+    const res = await fetch(`${base}/api/tags`, { signal: AbortSignal.timeout(1200) })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+async function getIntegrationProbeSnapshot(): Promise<IntegrationProbeSnapshot> {
+  const now = Date.now()
+  if (integrationProbeCache && (now - integrationProbeCache.ts) < INTEGRATION_PROBE_TTL_MS) {
+    return integrationProbeCache.value
+  }
+
+  const value: IntegrationProbeSnapshot = {
+    opAvailable: checkOpAvailable(),
+    xint: checkXintState(),
+    ollamaInstalled: checkCommandAvailable('ollama'),
+    ollamaReachable: await checkOllamaReachable(),
+  }
+  integrationProbeCache = { ts: now, value }
+  return value
+}
+
 // Uses execFileSync (no shell) to avoid command injection
 function checkOpAvailable(): boolean {
   try {
@@ -194,7 +302,9 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const opAvailable = checkOpAvailable()
+  const probe = await getIntegrationProbeSnapshot()
+  const { opAvailable, xint, ollamaInstalled, ollamaReachable } = probe
+  const providerSubscriptions = detectProviderSubscriptions()
 
   const integrations = INTEGRATIONS.map(def => {
     const vars: Record<string, { redacted: string; set: boolean }> = {}
@@ -202,13 +312,69 @@ export async function GET(request: NextRequest) {
     let anySet = false
 
     for (const envVar of def.envVars) {
-      const val = envMap.get(envVar)
-      if (val && val.length > 0) {
+      const val = getEffectiveEnvValue(envMap, envVar)
+      if (isConfiguredValue(envVar, val)) {
         vars[envVar] = { redacted: redactValue(val), set: true }
         anySet = true
       } else {
         vars[envVar] = { redacted: '', set: false }
         allSet = false
+      }
+    }
+
+    if (def.id === 'onepassword' && !anySet && opAvailable) {
+      const opEnv = { ...process.env }
+      const fileToken = envMap.get('OP_SERVICE_ACCOUNT_TOKEN')
+      if (fileToken) opEnv.OP_SERVICE_ACCOUNT_TOKEN = fileToken
+      if (checkOpAuthenticated(opEnv)) {
+        vars.OP_SERVICE_ACCOUNT_TOKEN = {
+          redacted: fileToken ? redactValue(fileToken) : 'op session',
+          set: true,
+        }
+        allSet = true
+        anySet = true
+      }
+    }
+
+    // Support OAuth/subscription-based auth for providers that may not expose API keys.
+    if ((def.id === 'anthropic' || def.id === 'openai') && !anySet) {
+      const sub = providerSubscriptions.active[def.id]
+      if (sub) {
+        const primaryVar = def.envVars[0]
+        vars[primaryVar] = {
+          redacted: `${sub.type} (${sub.source})`,
+          set: true,
+        }
+        allSet = true
+        anySet = true
+      }
+    }
+
+    // Local Ollama can be available without API key-based auth.
+    if (def.id === 'ollama' && !anySet) {
+      const primaryVar = def.envVars[0]
+      if (ollamaReachable) {
+        vars[primaryVar] = { redacted: 'local daemon', set: true }
+        allSet = true
+        anySet = true
+      } else if (ollamaInstalled) {
+        vars[primaryVar] = { redacted: 'installed (daemon not reachable)', set: true }
+        allSet = false
+        anySet = true
+      }
+    }
+
+    // X integration should default to xint auth when present.
+    if (def.id === 'x_twitter' && !anySet) {
+      const primaryVar = def.envVars[0]
+      if (xint.oauthConfigured) {
+        vars[primaryVar] = { redacted: 'xint oauth', set: true }
+        allSet = true
+        anySet = true
+      } else if (xint.installed || xint.envConfigured) {
+        vars[primaryVar] = { redacted: 'xint installed (run `xint auth`)', set: true }
+        allSet = false
+        anySet = true
       }
     }
 
@@ -223,6 +389,7 @@ export async function GET(request: NextRequest) {
       status,
       vaultItem: def.vaultItem ?? null,
       testable: def.testable ?? false,
+      recommendation: def.recommendation ?? null,
     }
   })
 
@@ -418,10 +585,11 @@ async function handleTest(
 
   try {
     let result: { ok: boolean; detail: string }
+    const providerSubscriptions = detectProviderSubscriptions()
 
     switch (integration.id) {
       case 'telegram': {
-        const token = envMap.get(integration.envVars[0])
+        const token = getEffectiveEnvValue(envMap, integration.envVars[0])
         if (!token) return NextResponse.json({ ok: false, detail: 'Token not set' })
         const res = await fetch(`https://api.telegram.org/bot${token}/getMe`, { signal: AbortSignal.timeout(5000) })
         const data = await res.json()
@@ -432,7 +600,7 @@ async function handleTest(
       }
 
       case 'github': {
-        const token = envMap.get('GITHUB_TOKEN')
+        const token = getEffectiveEnvValue(envMap, 'GITHUB_TOKEN')
         if (!token) return NextResponse.json({ ok: false, detail: 'Token not set' })
         const res = await fetch('https://api.github.com/user', {
           headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'MissionControl/1.0' },
@@ -448,8 +616,12 @@ async function handleTest(
       }
 
       case 'anthropic': {
-        const key = envMap.get('ANTHROPIC_API_KEY')
-        if (!key) return NextResponse.json({ ok: false, detail: 'API key not set' })
+        const key = getEffectiveEnvValue(envMap, 'ANTHROPIC_API_KEY')
+        if (!key) {
+          const sub = providerSubscriptions.active.anthropic
+          if (sub) return NextResponse.json({ ok: true, detail: `OAuth/subscription detected: ${sub.type}` })
+          return NextResponse.json({ ok: false, detail: 'API key not set' })
+        }
         const res = await fetch('https://api.anthropic.com/v1/models', {
           method: 'GET',
           headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
@@ -462,8 +634,12 @@ async function handleTest(
       }
 
       case 'openai': {
-        const key = envMap.get('OPENAI_API_KEY')
-        if (!key) return NextResponse.json({ ok: false, detail: 'API key not set' })
+        const key = getEffectiveEnvValue(envMap, 'OPENAI_API_KEY')
+        if (!key) {
+          const sub = providerSubscriptions.active.openai
+          if (sub) return NextResponse.json({ ok: true, detail: `OAuth/subscription detected: ${sub.type}` })
+          return NextResponse.json({ ok: false, detail: 'API key not set' })
+        }
         const res = await fetch('https://api.openai.com/v1/models', {
           headers: { Authorization: `Bearer ${key}` },
           signal: AbortSignal.timeout(5000),
@@ -475,7 +651,7 @@ async function handleTest(
       }
 
       case 'openrouter': {
-        const key = envMap.get('OPENROUTER_API_KEY')
+        const key = getEffectiveEnvValue(envMap, 'OPENROUTER_API_KEY')
         if (!key) return NextResponse.json({ ok: false, detail: 'API key not set' })
         const res = await fetch('https://openrouter.ai/api/v1/models', {
           headers: { Authorization: `Bearer ${key}` },

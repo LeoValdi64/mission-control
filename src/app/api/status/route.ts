@@ -70,6 +70,58 @@ async function getDashboardData(workspaceId: number) {
   return { ...system, db: dbStats }
 }
 
+async function getMemorySnapshot() {
+  const totalBytes = os.totalmem()
+  let availableBytes = os.freemem()
+
+  if (process.platform === 'darwin') {
+    try {
+      const { stdout } = await runCommand('vm_stat', [], { timeoutMs: 3000 })
+      const pageSizeMatch = stdout.match(/page size of (\d+) bytes/i)
+      const pageSize = parseInt(pageSizeMatch?.[1] || '4096', 10)
+      const pageLabels = ['Pages free', 'Pages inactive', 'Pages speculative', 'Pages purgeable']
+
+      const availablePages = pageLabels.reduce((sum, label) => {
+        const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const match = stdout.match(new RegExp(`${escapedLabel}:\\s+([\\d.]+)`, 'i'))
+        const pages = parseInt((match?.[1] || '0').replace(/\./g, ''), 10)
+        return sum + (Number.isFinite(pages) ? pages : 0)
+      }, 0)
+
+      const vmAvailableBytes = availablePages * pageSize
+      if (vmAvailableBytes > 0) {
+        availableBytes = Math.min(vmAvailableBytes, totalBytes)
+      }
+    } catch {
+      // Fall back to os.freemem()
+    }
+  } else {
+    try {
+      const { stdout } = await runCommand('free', ['-b'], { timeoutMs: 3000 })
+      const memLine = stdout.split('\n').find((line) => line.startsWith('Mem:'))
+      if (memLine) {
+        const parts = memLine.trim().split(/\s+/)
+        const available = parseInt(parts[6] || parts[3] || '0', 10)
+        if (Number.isFinite(available) && available > 0) {
+          availableBytes = Math.min(available, totalBytes)
+        }
+      }
+    } catch {
+      // Fall back to os.freemem()
+    }
+  }
+
+  const usedBytes = Math.max(0, totalBytes - availableBytes)
+  const usagePercent = totalBytes > 0 ? Math.round((usedBytes / totalBytes) * 100) : 0
+
+  return {
+    totalBytes,
+    availableBytes,
+    usedBytes,
+    usagePercent,
+  }
+}
+
 function getDbStats(workspaceId: number) {
   try {
     const db = getDatabase()
@@ -219,26 +271,11 @@ async function getSystemStatus(workspaceId: number) {
 
   try {
     // Memory info (cross-platform)
-    if (process.platform === 'darwin') {
-      const totalBytes = os.totalmem()
-      const freeBytes = os.freemem()
-      const totalMB = Math.round(totalBytes / (1024 * 1024))
-      const usedMB = Math.round((totalBytes - freeBytes) / (1024 * 1024))
-      const availableMB = Math.round(freeBytes / (1024 * 1024))
-      status.memory = { total: totalMB, used: usedMB, available: availableMB }
-    } else {
-      const { stdout: memOutput } = await runCommand('free', ['-m'], {
-        timeoutMs: 3000
-      })
-      const memLine = memOutput.split('\n').find(line => line.startsWith('Mem:'))
-      if (memLine) {
-        const parts = memLine.split(/\s+/)
-        status.memory = {
-          total: parseInt(parts[1]) || 0,
-          used: parseInt(parts[2]) || 0,
-          available: parseInt(parts[6]) || 0
-        }
-      }
+    const snapshot = await getMemorySnapshot()
+    status.memory = {
+      total: Math.round(snapshot.totalBytes / (1024 * 1024)),
+      used: Math.round(snapshot.usedBytes / (1024 * 1024)),
+      available: Math.round(snapshot.availableBytes / (1024 * 1024)),
     }
   } catch (error) {
     logger.error({ err: error }, 'Error getting memory info')
@@ -461,19 +498,7 @@ async function performHealthCheck() {
 
   // Check memory usage (cross-platform)
   try {
-    let usagePercent: number
-    if (process.platform === 'darwin') {
-      const totalBytes = os.totalmem()
-      const freeBytes = os.freemem()
-      usagePercent = Math.round(((totalBytes - freeBytes) / totalBytes) * 100)
-    } else {
-      const { stdout } = await runCommand('free', ['-m'], { timeoutMs: 3000 })
-      const memLine = stdout.split('\n').find((line) => line.startsWith('Mem:'))
-      const parts = (memLine || '').split(/\s+/)
-      const total = parseInt(parts[1] || '0')
-      const available = parseInt(parts[6] || '0')
-      usagePercent = Math.round(((total - available) / total) * 100)
-    }
+    const usagePercent = (await getMemorySnapshot()).usagePercent
 
     health.checks.push({
       name: 'Memory Usage',

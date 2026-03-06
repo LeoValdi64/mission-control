@@ -24,6 +24,7 @@ export async function GET(request: Request) {
       email: user.email || null,
       avatar_url: user.avatar_url || null,
       workspace_id: user.workspace_id ?? 1,
+      tenant_id: user.tenant_id ?? 1,
     },
   })
 }
@@ -105,6 +106,7 @@ export async function PATCH(request: NextRequest) {
         email: updated.email || null,
         avatar_url: updated.avatar_url || null,
         workspace_id: updated.workspace_id ?? 1,
+        tenant_id: updated.tenant_id ?? 1,
       },
     })
   } catch (error) {

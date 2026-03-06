@@ -266,6 +266,15 @@ export interface Tenant {
   updated_at: number
 }
 
+export interface Workspace {
+  id: number
+  slug: string
+  name: string
+  tenant_id: number
+  created_at: number
+  updated_at: number
+}
+
 export interface ProvisionJob {
   id: number
   tenant_id: number

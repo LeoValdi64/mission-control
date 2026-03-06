@@ -3,6 +3,7 @@ import { getDatabase } from '@/lib/db'
 import { requireRole } from '@/lib/auth'
 import { mutationLimiter } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
+import { ensureTenantWorkspaceAccess, ForbiddenError } from '@/lib/workspaces'
 
 function slugify(input: string): string {
   return input
@@ -25,6 +26,15 @@ export async function GET(request: NextRequest) {
   try {
     const db = getDatabase()
     const workspaceId = auth.user.workspace_id ?? 1
+    const tenantId = auth.user.tenant_id ?? 1
+    const forwardedFor = (request.headers.get('x-forwarded-for') || '').split(',')[0]?.trim() || null
+    ensureTenantWorkspaceAccess(db, tenantId, workspaceId, {
+      actor: auth.user.username,
+      actorId: auth.user.id,
+      route: '/api/projects',
+      ipAddress: forwardedFor,
+      userAgent: request.headers.get('user-agent'),
+    })
     const includeArchived = new URL(request.url).searchParams.get('includeArchived') === '1'
 
     const rows = db.prepare(`
@@ -46,6 +56,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ projects })
   } catch (error) {
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
     logger.error({ err: error }, 'GET /api/projects error')
     return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 })
   }
@@ -61,6 +74,15 @@ export async function POST(request: NextRequest) {
   try {
     const db = getDatabase()
     const workspaceId = auth.user.workspace_id ?? 1
+    const tenantId = auth.user.tenant_id ?? 1
+    const forwardedFor = (request.headers.get('x-forwarded-for') || '').split(',')[0]?.trim() || null
+    ensureTenantWorkspaceAccess(db, tenantId, workspaceId, {
+      actor: auth.user.username,
+      actorId: auth.user.id,
+      route: '/api/projects',
+      ipAddress: forwardedFor,
+      userAgent: request.headers.get('user-agent'),
+    })
     const body = await request.json()
 
     const name = String(body?.name || '').trim()
@@ -101,6 +123,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ project }, { status: 201 })
   } catch (error) {
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
     logger.error({ err: error }, 'POST /api/projects error')
     return NextResponse.json({ error: 'Failed to create project' }, { status: 500 })
   }
