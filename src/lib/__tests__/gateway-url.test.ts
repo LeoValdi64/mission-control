@@ -34,11 +34,11 @@ describe('buildGatewayWebSocketUrl', () => {
     })).toBe('wss://gateway.example.com:8443')
   })
 
-  it('drops path/query/hash when full dashboard URL is pasted', () => {
+  it('preserves token query while dropping unrelated path/query/hash from pasted dashboard URL', () => {
     expect(buildGatewayWebSocketUrl({
-      host: 'https://bill.tail8b4599.ts.net:4443/sessions?foo=bar#frag',
+      host: 'https://bill.tail8b4599.ts.net:4443/sessions?foo=bar&token=abc123#frag',
       port: 18789,
       browserProtocol: 'https:',
-    })).toBe('wss://bill.tail8b4599.ts.net:4443')
+    })).toBe('wss://bill.tail8b4599.ts.net:4443?token=abc123')
   })
 })

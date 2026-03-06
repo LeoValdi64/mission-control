@@ -13,6 +13,18 @@ function normalizeProtocol(protocol: string): 'ws:' | 'wss:' {
   return 'ws:'
 }
 
+function preserveTokenQuery(parsed: URL): void {
+  const token = parsed.searchParams.get('token')
+  parsed.search = ''
+  if (token) {
+    parsed.searchParams.set('token', token)
+  }
+}
+
+function formatWebSocketUrl(parsed: URL): string {
+  return parsed.toString().replace(/\/$/, '').replace('/?', '?')
+}
+
 export function buildGatewayWebSocketUrl(input: {
   host: string
   port: number
@@ -40,9 +52,9 @@ export function buildGatewayWebSocketUrl(input: {
       parsed.protocol = normalizeProtocol(parsed.protocol)
       // Users often paste dashboard/session URLs; websocket connect should target gateway root.
       parsed.pathname = '/'
-      parsed.search = ''
+      preserveTokenQuery(parsed)
       parsed.hash = ''
-      return parsed.toString().replace(/\/$/, '')
+      return formatWebSocketUrl(parsed)
     } catch {
       return prefixed
     }
