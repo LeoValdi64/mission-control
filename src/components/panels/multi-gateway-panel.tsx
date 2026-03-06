@@ -75,6 +75,31 @@ export function MultiGatewayPanel() {
 
   useEffect(() => { fetchGateways(); fetchDirectConnections() }, [fetchGateways, fetchDirectConnections])
 
+  const gatewayMatchesConnection = useCallback((gw: Gateway): boolean => {
+    const url = connection.url
+    if (!url) return false
+    const normalizedConn = url.toLowerCase()
+    const normalizedHost = String(gw.host || '').toLowerCase()
+
+    if (normalizedHost && normalizedConn.includes(normalizedHost)) return true
+    if (normalizedConn.includes(`:${gw.port}`)) return true
+
+    try {
+      const derivedWs = buildGatewayWebSocketUrl({
+        host: gw.host,
+        port: gw.port,
+        browserProtocol: window.location.protocol,
+      }).toLowerCase()
+      return normalizedConn.includes(derivedWs)
+    } catch {
+      return false
+    }
+  }, [connection.url])
+
+  const shouldShowConnectionSummary =
+    gateways.length === 0 ||
+    !gateways.some(gatewayMatchesConnection)
+
   const setPrimary = async (gw: Gateway) => {
     await fetch('/api/gateways', {
       method: 'PUT',
@@ -172,21 +197,23 @@ export function MultiGatewayPanel() {
         </div>
       </div>
 
-      {/* Current connection info */}
-      <div className="bg-card border border-border rounded-lg p-4">
-        <div className="flex items-center gap-3">
-          <span className={`w-2.5 h-2.5 rounded-full ${connection.isConnected ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`} />
-          <div>
-            <div className="text-sm font-medium text-foreground">
-              {connection.isConnected ? 'Connected' : 'Disconnected'}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {connection.url || 'No active connection'}
-              {connection.latency != null && ` (${connection.latency}ms)`}
+      {/* Current connection info (shown only for unmanaged/unknown connections). */}
+      {shouldShowConnectionSummary && (
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <span className={`w-2.5 h-2.5 rounded-full ${connection.isConnected ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`} />
+            <div>
+              <div className="text-sm font-medium text-foreground">
+                {connection.isConnected ? 'Connected' : 'Disconnected'}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {connection.url || 'No active connection'}
+                {connection.latency != null && ` (${connection.latency}ms)`}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Add Form */}
       {showAdd && (
@@ -209,7 +236,7 @@ export function MultiGatewayPanel() {
               gateway={gw}
               health={healthByGatewayId.get(gw.id)}
               isProbing={probing === gw.id}
-              isCurrentlyConnected={(connection.url?.includes(gw.host) ?? false) || (connection.url?.includes(`:${gw.port}`) ?? false)}
+              isCurrentlyConnected={gatewayMatchesConnection(gw)}
               onSetPrimary={() => setPrimary(gw)}
               onDelete={() => deleteGateway(gw.id)}
               onConnect={() => connectTo(gw)}
