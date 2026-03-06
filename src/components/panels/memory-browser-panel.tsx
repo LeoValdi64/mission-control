@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
 import { useMissionControl } from '@/store'
 import { createClientLogger } from '@/lib/client-logger'
 
@@ -375,36 +376,24 @@ export function MemoryBrowserPanel() {
         
         {/* Tab Navigation */}
         <div className="flex gap-2 mt-4">
-          <button
+          <Button
             onClick={() => setActiveTab('all')}
-            className={`px-4 py-2 rounded font-medium transition-colors ${
-              activeTab === 'all' 
-                ? 'bg-primary text-primary-foreground' 
-                : 'bg-secondary text-foreground hover:bg-secondary/80'
-            }`}
+            variant={activeTab === 'all' ? 'default' : 'secondary'}
           >
             📁 All Files
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setActiveTab('daily')}
-            className={`px-4 py-2 rounded font-medium transition-colors ${
-              activeTab === 'daily' 
-                ? 'bg-primary text-primary-foreground' 
-                : 'bg-secondary text-foreground hover:bg-secondary/80'
-            }`}
+            variant={activeTab === 'daily' ? 'default' : 'secondary'}
           >
             📅 Daily Logs
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setActiveTab('knowledge')}
-            className={`px-4 py-2 rounded font-medium transition-colors ${
-              activeTab === 'knowledge' 
-                ? 'bg-primary text-primary-foreground' 
-                : 'bg-secondary text-foreground hover:bg-secondary/80'
-            }`}
+            variant={activeTab === 'knowledge' ? 'default' : 'secondary'}
           >
             🧠 Knowledge
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -421,20 +410,19 @@ export function MemoryBrowserPanel() {
               className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
-          <button
+          <Button
             onClick={searchFiles}
             disabled={isSearching || !searchQuery.trim()}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isSearching ? 'Searching...' : 'Search'}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={loadFileTree}
             disabled={isLoading}
-            className="px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-md font-medium hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+            className="bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30"
           >
             Refresh
-          </button>
+          </Button>
         </div>
 
         {/* Search Results */}
@@ -498,55 +486,60 @@ export function MemoryBrowserPanel() {
                 <>
                   {!isEditing ? (
                     <>
-                      <button
+                      <Button
                         onClick={startEditing}
-                        className="px-3 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-md text-sm hover:bg-blue-500/30 transition-smooth"
+                        size="sm"
+                        className="bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30"
                       >
                         Edit
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={() => setShowDeleteConfirm(true)}
-                        className="px-3 py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded-md text-sm hover:bg-red-500/30 transition-smooth"
+                        variant="destructive"
+                        size="sm"
                       >
                         Delete
-                      </button>
+                      </Button>
                     </>
                   ) : (
                     <>
-                      <button
+                      <Button
                         onClick={saveFile}
                         disabled={isSaving}
-                        className="px-3 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-md text-sm hover:bg-green-500/30 disabled:opacity-50 transition-smooth"
+                        variant="success"
+                        size="sm"
                       >
                         {isSaving ? 'Saving...' : 'Save'}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={cancelEditing}
-                        className="px-3 py-1 bg-secondary text-muted-foreground rounded-md text-sm hover:bg-secondary/80 transition-smooth"
+                        variant="secondary"
+                        size="sm"
                       >
                         Cancel
-                      </button>
+                      </Button>
                     </>
                   )}
-                  <button
+                  <Button
                     onClick={() => {
                       setSelectedMemoryFile('')
                       setMemoryContent('')
                       setIsEditing(false)
                       setEditedContent('')
                     }}
-                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    variant="ghost"
+                    size="sm"
                   >
                     Close
-                  </button>
+                  </Button>
                 </>
               )}
-              <button
+              <Button
                 onClick={() => setShowCreateModal(true)}
-                className="px-3 py-1 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90 transition-colors"
+                size="sm"
               >
                 + New File
-              </button>
+              </Button>
             </div>
           </div>
           
@@ -597,12 +590,12 @@ export function MemoryBrowserPanel() {
             ) : (
               <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
                 <span>Select a file to view its content</span>
-                <button
+                <Button
                   onClick={() => setShowCreateModal(true)}
-                  className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                  className="mt-4"
                 >
                   Create New File
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -719,7 +712,7 @@ function CreateFileModal({
       <div className="bg-card border border-border rounded-lg max-w-md w-full p-6 shadow-xl">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-bold text-foreground">Create New File</h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl transition-smooth">×</button>
+          <Button onClick={onClose} variant="ghost" size="icon-xs" className="text-xl">×</Button>
         </div>
 
         <div className="space-y-4">
@@ -784,19 +777,19 @@ function CreateFileModal({
           </div>
 
           <div className="flex gap-3 pt-4">
-            <button
+            <Button
               onClick={handleCreate}
               disabled={!fileName.trim()}
-              className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-smooth"
+              className="flex-1"
             >
               Create File
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={onClose}
-              className="px-4 py-2 bg-secondary text-muted-foreground rounded-md hover:bg-secondary/80 transition-smooth"
+              variant="secondary"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -819,7 +812,7 @@ function DeleteConfirmModal({
       <div className="bg-card border border-border rounded-lg max-w-md w-full p-6 shadow-xl">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-bold text-red-400">Confirm Deletion</h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl transition-smooth">×</button>
+          <Button onClick={onClose} variant="ghost" size="icon-xs" className="text-xl">×</Button>
         </div>
 
         <div className="space-y-4">
@@ -834,18 +827,19 @@ function DeleteConfirmModal({
           </div>
 
           <div className="flex gap-3 pt-4">
-            <button
+            <Button
               onClick={onConfirm}
-              className="flex-1 px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/30 rounded-md hover:bg-red-500/30 transition-smooth"
+              variant="destructive"
+              className="flex-1"
             >
               Delete Permanently
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={onClose}
-              className="px-4 py-2 bg-secondary text-muted-foreground rounded-md hover:bg-secondary/80 transition-smooth"
+              variant="secondary"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       </div>

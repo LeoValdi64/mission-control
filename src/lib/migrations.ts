@@ -797,6 +797,86 @@ const migrations: Migration[] = [
       db.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_completed_at ON tasks(completed_at)`)
       db.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_workspace_outcome ON tasks(workspace_id, outcome, completed_at)`)
     }
+  },
+  {
+    id: '027_enhanced_projects',
+    up: (db) => {
+      const hasProjects = db
+        .prepare(`SELECT 1 as ok FROM sqlite_master WHERE type = 'table' AND name = 'projects'`)
+        .get() as { ok?: number } | undefined
+      if (!hasProjects?.ok) return
+
+      const cols = db.prepare(`PRAGMA table_info(projects)`).all() as Array<{ name: string }>
+      const hasCol = (name: string) => cols.some((c) => c.name === name)
+
+      if (!hasCol('github_repo')) db.exec(`ALTER TABLE projects ADD COLUMN github_repo TEXT`)
+      if (!hasCol('deadline')) db.exec(`ALTER TABLE projects ADD COLUMN deadline INTEGER`)
+      if (!hasCol('color')) db.exec(`ALTER TABLE projects ADD COLUMN color TEXT`)
+      if (!hasCol('metadata')) db.exec(`ALTER TABLE projects ADD COLUMN metadata TEXT`)
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS project_agent_assignments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_id INTEGER NOT NULL,
+          agent_name TEXT NOT NULL,
+          role TEXT DEFAULT 'member',
+          assigned_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+          UNIQUE(project_id, agent_name)
+        );
+        CREATE INDEX IF NOT EXISTS idx_paa_project ON project_agent_assignments(project_id);
+        CREATE INDEX IF NOT EXISTS idx_paa_agent ON project_agent_assignments(agent_name);
+      `)
+    }
+  },
+  {
+    id: '028_github_sync_v2',
+    up: (db) => {
+      // Tasks: promote GitHub fields from metadata JSON to proper columns
+      const taskCols = db.prepare(`PRAGMA table_info(tasks)`).all() as Array<{ name: string }>
+      const hasTaskCol = (name: string) => taskCols.some((c) => c.name === name)
+
+      if (!hasTaskCol('github_issue_number')) db.exec(`ALTER TABLE tasks ADD COLUMN github_issue_number INTEGER`)
+      if (!hasTaskCol('github_repo')) db.exec(`ALTER TABLE tasks ADD COLUMN github_repo TEXT`)
+      if (!hasTaskCol('github_synced_at')) db.exec(`ALTER TABLE tasks ADD COLUMN github_synced_at INTEGER`)
+      if (!hasTaskCol('github_branch')) db.exec(`ALTER TABLE tasks ADD COLUMN github_branch TEXT`)
+      if (!hasTaskCol('github_pr_number')) db.exec(`ALTER TABLE tasks ADD COLUMN github_pr_number INTEGER`)
+      if (!hasTaskCol('github_pr_state')) db.exec(`ALTER TABLE tasks ADD COLUMN github_pr_state TEXT`)
+
+      // Unique index for dedup (partial — only rows with issue numbers)
+      db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_github_issue
+          ON tasks(workspace_id, github_repo, github_issue_number)
+          WHERE github_issue_number IS NOT NULL
+      `)
+
+      // Projects: sync control columns
+      const projCols = db.prepare(`PRAGMA table_info(projects)`).all() as Array<{ name: string }>
+      const hasProjCol = (name: string) => projCols.some((c) => c.name === name)
+
+      if (!hasProjCol('github_sync_enabled')) db.exec(`ALTER TABLE projects ADD COLUMN github_sync_enabled INTEGER NOT NULL DEFAULT 0`)
+      if (!hasProjCol('github_labels_initialized')) db.exec(`ALTER TABLE projects ADD COLUMN github_labels_initialized INTEGER NOT NULL DEFAULT 0`)
+      if (!hasProjCol('github_default_branch')) db.exec(`ALTER TABLE projects ADD COLUMN github_default_branch TEXT DEFAULT 'main'`)
+
+      // Enhanced sync history columns
+      const syncCols = db.prepare(`PRAGMA table_info(github_syncs)`).all() as Array<{ name: string }>
+      const hasSyncCol = (name: string) => syncCols.some((c) => c.name === name)
+
+      if (!hasSyncCol('project_id')) db.exec(`ALTER TABLE github_syncs ADD COLUMN project_id INTEGER`)
+      if (!hasSyncCol('changes_pushed')) db.exec(`ALTER TABLE github_syncs ADD COLUMN changes_pushed INTEGER NOT NULL DEFAULT 0`)
+      if (!hasSyncCol('changes_pulled')) db.exec(`ALTER TABLE github_syncs ADD COLUMN changes_pulled INTEGER NOT NULL DEFAULT 0`)
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_github_syncs_project ON github_syncs(project_id)`)
+
+      // Data migration: copy existing metadata JSON values into new columns
+      db.exec(`
+        UPDATE tasks
+        SET github_repo = json_extract(metadata, '$.github_repo'),
+            github_issue_number = json_extract(metadata, '$.github_issue_number'),
+            github_synced_at = CAST(strftime('%s', json_extract(metadata, '$.github_synced_at')) AS INTEGER)
+        WHERE json_extract(metadata, '$.github_repo') IS NOT NULL
+          AND github_repo IS NULL
+      `)
+    }
   }
 ]
 

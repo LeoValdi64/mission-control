@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
 import { useMissionControl } from '@/store'
 import { createClientLogger } from '@/lib/client-logger'
 
@@ -199,13 +200,13 @@ export function AgentSpawnPanel() {
             </div>
 
             {/* Spawn Button */}
-            <button
+            <Button
               onClick={handleSpawn}
               disabled={isSpawning || !formData.task.trim() || !formData.label.trim()}
-              className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full"
             >
               {isSpawning ? 'Spawning Agent...' : 'Spawn Agent'}
-            </button>
+            </Button>
           </div>
         </div>
 

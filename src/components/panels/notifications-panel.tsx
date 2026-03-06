@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
 import { useSmartPoll } from '@/lib/use-smart-poll'
 
 interface Notification {
@@ -72,12 +73,13 @@ export function NotificationsPanel() {
     <div className="h-full flex flex-col">
       <div className="flex justify-between items-center p-4 border-b border-border flex-shrink-0">
         <h2 className="text-xl font-bold text-foreground">Notifications</h2>
-        <button
+        <Button
           onClick={markAllRead}
-          className="px-3 py-1.5 bg-secondary text-foreground rounded-md text-sm hover:bg-secondary/80 transition-smooth"
+          variant="secondary"
+          size="sm"
         >
           Mark All Read
-        </button>
+        </Button>
       </div>
 
       <div className="p-4 border-b border-border flex-shrink-0">
@@ -124,12 +126,14 @@ export function NotificationsPanel() {
                   <div className="text-xs text-muted-foreground/60">{n.type}</div>
                 </div>
                 {!n.read_at && (
-                  <button
+                  <Button
                     onClick={() => markRead(n.id)}
-                    className="text-xs text-primary hover:text-primary/80 transition-smooth flex-shrink-0 ml-2"
+                    variant="link"
+                    size="xs"
+                    className="flex-shrink-0 ml-2"
                   >
                     Mark read
-                  </button>
+                  </Button>
                 )}
               </div>
               <div className="text-sm text-foreground/80 mt-2 whitespace-pre-wrap">{n.message}</div>

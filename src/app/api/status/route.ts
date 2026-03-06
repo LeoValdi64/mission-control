@@ -503,23 +503,27 @@ async function performHealthCheck() {
 }
 
 async function getCapabilities() {
-  let configuredGateways = 0
+  // Probe configured gateways (if any) or fall back to the default port.
+  // A DB row alone isn't enough — the gateway must actually be reachable.
+  let gatewayReachable = false
   try {
     const db = getDatabase()
     const table = db.prepare(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='gateways'"
     ).get() as { name?: string } | undefined
     if (table?.name) {
-      const row = db.prepare('SELECT COUNT(*) as c FROM gateways').get() as { c: number } | undefined
-      configuredGateways = row?.c ?? 0
+      const rows = db.prepare('SELECT host, port FROM gateways').all() as { host: string; port: number }[]
+      if (rows.length > 0) {
+        const probes = rows.map(r => isPortOpen(r.host, Number(r.port)))
+        const results = await Promise.all(probes)
+        gatewayReachable = results.some(Boolean)
+      }
     }
   } catch {
-    configuredGateways = 0
+    // ignore — fall through to default probe
   }
 
-  // Treat an explicit gateway configuration as gateway-capable, even if the
-  // local default port probe fails (common with remote /gw reverse-proxy setups).
-  const gateway = configuredGateways > 0 || await isPortOpen(config.gatewayHost, config.gatewayPort)
+  const gateway = gatewayReachable || await isPortOpen(config.gatewayHost, config.gatewayPort)
 
   const openclawHome = Boolean(
     (config.openclawStateDir && existsSync(config.openclawStateDir)) ||
@@ -547,7 +551,24 @@ async function getCapabilities() {
     provider: primary.provider,
   } : null
 
-  return { gateway, openclawHome, claudeHome, claudeSessions, subscription, subscriptions }
+  // Apply subscription overrides from settings
+  try {
+    const settingsDb = getDatabase()
+    const planOverride = settingsDb.prepare("SELECT value FROM settings WHERE key = 'subscription.plan_override'").get() as { value: string } | undefined
+    if (planOverride?.value && subscription) {
+      subscription.type = planOverride.value
+    }
+    const codexPlan = settingsDb.prepare("SELECT value FROM settings WHERE key = 'subscription.codex_plan'").get() as { value: string } | undefined
+    if (codexPlan?.value) {
+      subscriptions['openai'] = { provider: 'openai', type: codexPlan.value, source: 'env' as const }
+    }
+  } catch {
+    // settings table may not exist yet
+  }
+
+  const processUser = process.env.MC_DEFAULT_ORG_NAME || os.userInfo().username
+
+  return { gateway, openclawHome, claudeHome, claudeSessions, subscription, subscriptions, processUser }
 }
 
 function isPortOpen(host: string, port: number): Promise<boolean> {

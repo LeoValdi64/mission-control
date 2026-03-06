@@ -114,6 +114,12 @@ export interface Task {
   completed_at?: number
   tags?: string[]
   metadata?: any
+  github_issue_number?: number
+  github_repo?: string
+  github_synced_at?: number
+  github_branch?: string
+  github_pr_number?: number
+  github_pr_state?: string
 }
 
 export interface Agent {
@@ -257,6 +263,45 @@ export interface CurrentUser {
   avatar_url?: string | null
 }
 
+export interface Tenant {
+  id: number
+  slug: string
+  display_name: string
+  status: string
+  linux_user: string
+  gateway_port?: number | null
+  owner_gateway?: string
+}
+
+export interface OsUser {
+  username: string
+  uid: number
+  home_dir: string
+  shell: string
+  linked_tenant_id: number | null
+  has_claude: boolean
+  has_codex: boolean
+  has_openclaw: boolean
+  is_process_owner: boolean
+}
+
+export interface Project {
+  id: number
+  name: string
+  slug: string
+  description?: string
+  ticket_prefix: string
+  status: string
+  github_repo?: string
+  deadline?: number
+  color?: string
+  task_count?: number
+  assigned_agents?: string[]
+  github_sync_enabled?: boolean
+  github_labels_initialized?: boolean
+  github_default_branch?: string
+}
+
 export interface ConnectionStatus {
   isConnected: boolean
   url: string
@@ -271,11 +316,15 @@ interface MissionControlStore {
   dashboardMode: 'full' | 'local'
   gatewayAvailable: boolean
   bannerDismissed: boolean
-  subscription: { type: string; rateLimitTier?: string } | null
+  capabilitiesChecked: boolean
+  subscription: { type: string; provider?: string; rateLimitTier?: string } | null
+  defaultOrgName: string
   setDashboardMode: (mode: 'full' | 'local') => void
   setGatewayAvailable: (available: boolean) => void
   dismissBanner: () => void
-  setSubscription: (sub: { type: string; rateLimitTier?: string } | null) => void
+  setCapabilitiesChecked: (checked: boolean) => void
+  setSubscription: (sub: { type: string; provider?: string; rateLimitTier?: string } | null) => void
+  setDefaultOrgName: (name: string) => void
 
   // Update availability
   updateAvailable: { latestVersion: string; releaseUrl: string; releaseNotes: string } | null
@@ -406,6 +455,26 @@ interface MissionControlStore {
   currentUser: CurrentUser | null
   setCurrentUser: (user: CurrentUser | null) => void
 
+  // Tenant / Organization context
+  activeTenant: Tenant | null
+  tenants: Tenant[]
+  osUsers: OsUser[]
+  setActiveTenant: (tenant: Tenant | null) => void
+  setTenants: (tenants: Tenant[]) => void
+  fetchTenants: () => Promise<void>
+  fetchOsUsers: () => Promise<void>
+
+  // Project context (scoped within current tenant/workspace)
+  activeProject: Project | null
+  projects: Project[]
+  setActiveProject: (project: Project | null) => void
+  setProjects: (projects: Project[]) => void
+  fetchProjects: () => Promise<void>
+
+  // Project Manager Modal (global)
+  showProjectManagerModal: boolean
+  setShowProjectManagerModal: (show: boolean) => void
+
   // UI State
   activeTab: string
   sidebarExpanded: boolean
@@ -421,14 +490,18 @@ interface MissionControlStore {
 export const useMissionControl = create<MissionControlStore>()(
   subscribeWithSelector((set, get) => ({
     // Dashboard Mode
-    dashboardMode: 'full' as const,
-    gatewayAvailable: true,
+    dashboardMode: 'local' as const,
+    gatewayAvailable: false,
     bannerDismissed: false,
+    capabilitiesChecked: false,
     subscription: null,
+    defaultOrgName: 'Default',
     setDashboardMode: (mode) => set({ dashboardMode: mode }),
     setGatewayAvailable: (available) => set({ gatewayAvailable: available }),
     dismissBanner: () => set({ bannerDismissed: true }),
+    setCapabilitiesChecked: (checked) => set({ capabilitiesChecked: checked }),
     setSubscription: (sub) => set({ subscription: sub }),
+    setDefaultOrgName: (name) => set({ defaultOrgName: name }),
 
     // Update availability
     updateAvailable: null,
@@ -585,6 +658,79 @@ export const useMissionControl = create<MissionControlStore>()(
     // Auth
     currentUser: null,
     setCurrentUser: (user) => set({ currentUser: user }),
+
+    // Tenant / Organization context
+    activeTenant: (() => {
+      if (typeof window === 'undefined') return null
+      try {
+        const raw = localStorage.getItem('mc-active-tenant')
+        return raw ? JSON.parse(raw) as Tenant : null
+      } catch { return null }
+    })(),
+    tenants: [],
+    osUsers: [],
+    setActiveTenant: (tenant) => {
+      try {
+        if (tenant) {
+          localStorage.setItem('mc-active-tenant', JSON.stringify(tenant))
+        } else {
+          localStorage.removeItem('mc-active-tenant')
+        }
+      } catch {}
+      set({ activeTenant: tenant })
+    },
+    setTenants: (tenants) => set({ tenants }),
+    fetchTenants: async () => {
+      try {
+        const res = await fetch('/api/super/tenants', { cache: 'no-store' })
+        if (!res.ok) return
+        const data = await res.json()
+        const tenantList = Array.isArray(data?.tenants) ? data.tenants : []
+        set({ tenants: tenantList })
+      } catch {}
+    },
+    fetchOsUsers: async () => {
+      try {
+        const res = await fetch('/api/super/os-users', { cache: 'no-store' })
+        if (!res.ok) return
+        const data = await res.json()
+        set({ osUsers: Array.isArray(data?.users) ? data.users : [] })
+      } catch {}
+    },
+
+    // Project context
+    activeProject: (() => {
+      if (typeof window === 'undefined') return null
+      try {
+        const raw = localStorage.getItem('mc-active-project')
+        return raw ? JSON.parse(raw) as Project : null
+      } catch { return null }
+    })(),
+    projects: [],
+    setActiveProject: (project) => {
+      try {
+        if (project) {
+          localStorage.setItem('mc-active-project', JSON.stringify(project))
+        } else {
+          localStorage.removeItem('mc-active-project')
+        }
+      } catch {}
+      set({ activeProject: project })
+    },
+    setProjects: (projects) => set({ projects }),
+    fetchProjects: async () => {
+      try {
+        const res = await fetch('/api/projects', { cache: 'no-store' })
+        if (!res.ok) return
+        const data = await res.json()
+        const projectList = Array.isArray(data?.projects) ? data.projects : []
+        set({ projects: projectList })
+      } catch {}
+    },
+
+    // Project Manager Modal (global)
+    showProjectManagerModal: false,
+    setShowProjectManagerModal: (show) => set({ showProjectManagerModal: show }),
 
     // UI State — sidebar & layout persistence
     activeTab: 'overview',

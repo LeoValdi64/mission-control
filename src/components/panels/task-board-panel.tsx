@@ -11,6 +11,8 @@ import { useFocusTrap } from '@/lib/use-focus-trap'
 
 import { AgentAvatar } from '@/components/ui/agent-avatar'
 import { MarkdownRenderer } from '@/components/markdown-renderer'
+import { Button } from '@/components/ui/button'
+import { ProjectManagerModal } from '@/components/modals/project-manager-modal'
 
 const log = createClientLogger('TaskBoard')
 
@@ -35,6 +37,11 @@ interface Task {
   project_name?: string
   project_prefix?: string
   ticket_ref?: string
+  github_issue_number?: number
+  github_repo?: string
+  github_branch?: string
+  github_pr_number?: number
+  github_pr_state?: string
 }
 
 interface Agent {
@@ -87,10 +94,10 @@ const statusColumns = [
 ]
 
 const priorityColors: Record<string, string> = {
-  low: 'border-green-500',
-  medium: 'border-yellow-500',
-  high: 'border-orange-500',
-  critical: 'border-red-500',
+  low: 'border-l-green-500',
+  medium: 'border-l-yellow-500',
+  high: 'border-l-orange-500',
+  critical: 'border-l-red-500',
 }
 
 function useMentionTargets() {
@@ -243,13 +250,15 @@ function MentionTextarea({
 }
 
 export function TaskBoardPanel() {
-  const { tasks: storeTasks, setTasks: storeSetTasks, selectedTask, setSelectedTask } = useMissionControl()
+  const { tasks: storeTasks, setTasks: storeSetTasks, selectedTask, setSelectedTask, activeProject } = useMissionControl()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [agents, setAgents] = useState<Agent[]>([])
   const [projects, setProjects] = useState<Project[]>([])
-  const [projectFilter, setProjectFilter] = useState<string>('all')
+  const [projectFilter, setProjectFilter] = useState<string>(
+    activeProject ? String(activeProject.id) : 'all'
+  )
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [aegisMap, setAegisMap] = useState<Record<number, boolean>>({})
@@ -344,6 +353,12 @@ export function TaskBoardPanel() {
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  // Sync global activeProject into local projectFilter
+  useEffect(() => {
+    const newFilter = activeProject ? String(activeProject.id) : 'all'
+    setProjectFilter(newFilter)
+  }, [activeProject])
 
   useEffect(() => {
     if (!Number.isFinite(selectedTaskIdFromUrl)) {
@@ -498,9 +513,40 @@ export function TaskBoardPanel() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64" role="status" aria-live="polite">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" aria-hidden="true"></div>
-        <span className="ml-2 text-muted-foreground">Loading tasks...</span>
+      <div className="h-full flex flex-col" role="status" aria-live="polite">
+        <div className="flex justify-between items-center p-4 border-b border-border flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="h-7 w-28 bg-surface-1 rounded-md animate-pulse" />
+            <div className="h-9 w-36 bg-surface-1 rounded-md animate-pulse" />
+          </div>
+          <div className="flex gap-2">
+            <div className="h-9 w-20 bg-surface-1 rounded-md animate-pulse" />
+            <div className="h-9 w-24 bg-surface-1 rounded-md animate-pulse" />
+          </div>
+        </div>
+        <div className="flex-1 flex gap-4 p-4 overflow-x-auto">
+          {Array.from({ length: 4 }).map((_, colIdx) => (
+            <div key={colIdx} className="flex-1 min-w-80 bg-card border border-border rounded-lg flex flex-col">
+              <div className="p-3 rounded-t-lg bg-surface-1 animate-pulse">
+                <div className="h-5 w-24 bg-surface-2 rounded" />
+              </div>
+              <div className="flex-1 p-3 space-y-3">
+                {Array.from({ length: 3 - colIdx }).map((_, cardIdx) => (
+                  <div key={cardIdx} className="bg-surface-1 rounded-lg p-3 border-l-4 border-border space-y-2 animate-pulse">
+                    <div className="h-4 w-3/4 bg-surface-2 rounded" />
+                    <div className="h-3 w-full bg-surface-2/60 rounded" />
+                    <div className="h-3 w-1/2 bg-surface-2/40 rounded" />
+                    <div className="flex justify-between items-center pt-1">
+                      <div className="h-3 w-20 bg-surface-2/50 rounded" />
+                      <div className="h-3 w-16 bg-surface-2/50 rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <span className="sr-only">Loading tasks...</span>
       </div>
     )
   }
@@ -511,38 +557,37 @@ export function TaskBoardPanel() {
       <div className="flex justify-between items-center p-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-bold text-foreground">Task Board</h2>
-          <select
-            value={projectFilter}
-            onChange={(e) => setProjectFilter(e.target.value)}
-            className="h-9 px-3 bg-surface-1 text-foreground border border-border rounded-md text-sm"
-          >
-            <option value="all">All Projects</option>
-            {projects.map((project) => (
-              <option key={project.id} value={String(project.id)}>
-                {project.name} ({project.ticket_prefix})
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={projectFilter}
+              onChange={(e) => setProjectFilter(e.target.value)}
+              className="h-9 px-3 pr-8 bg-surface-1 text-foreground border border-border rounded-md text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              <option value="all">All Projects</option>
+              {projects.map((project) => (
+                <option key={project.id} value={String(project.id)}>
+                  {project.name} ({project.ticket_prefix})
+                </option>
+              ))}
+            </select>
+            <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 6l4 4 4-4" />
+            </svg>
+          </div>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => setShowProjectManager(true)}
-            className="px-4 py-2 bg-secondary text-muted-foreground rounded-md hover:bg-surface-2 transition-smooth text-sm font-medium"
-          >
+          <Button variant="outline" onClick={() => setShowProjectManager(true)}>
             Projects
-          </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-smooth text-sm font-medium"
-          >
+          </Button>
+          <Button onClick={() => setShowCreateModal(true)}>
             + New Task
-          </button>
-          <button
-            onClick={fetchData}
-            className="px-4 py-2 bg-secondary text-muted-foreground rounded-md hover:bg-surface-2 transition-smooth text-sm font-medium"
-          >
-            Refresh
-          </button>
+          </Button>
+          <Button variant="ghost" size="icon-sm" onClick={fetchData} title="Refresh">
+            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1.5 8a6.5 6.5 0 0 1 11.25-4.5M14.5 8a6.5 6.5 0 0 1-11.25 4.5" />
+              <path d="M13.5 2v3h-3M2.5 14v-3h3" />
+            </svg>
+          </Button>
         </div>
       </div>
 
@@ -550,13 +595,15 @@ export function TaskBoardPanel() {
       {error && (
         <div role="alert" className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 m-4 rounded-lg text-sm flex items-center justify-between">
           <span>{error}</span>
-          <button
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={() => setError(null)}
             className="text-red-400/60 hover:text-red-400 ml-2"
             aria-label="Dismiss error"
           >
             ×
-          </button>
+          </Button>
         </div>
       )}
 
@@ -567,22 +614,22 @@ export function TaskBoardPanel() {
             key={column.key}
             role="region"
             aria-label={`${column.title} column, ${tasksByStatus[column.key]?.length || 0} tasks`}
-            className="flex-1 min-w-80 bg-card border border-border rounded-lg flex flex-col"
+            className="flex-1 min-w-80 bg-surface-0 border border-border/60 rounded-xl flex flex-col transition-colors duration-200 [&.drag-over]:border-primary/40 [&.drag-over]:bg-primary/[0.02]"
             onDragEnter={(e) => handleDragEnter(e, column.key)}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, column.key)}
           >
             {/* Column Header */}
-            <div className={`${column.color} p-3 rounded-t-lg flex justify-between items-center`}>
-              <h3 className="font-semibold">{column.title}</h3>
-              <span className="text-sm bg-black/20 px-2 py-1 rounded">
+            <div className={`${column.color} px-4 py-3 rounded-t-xl flex justify-between items-center border-b border-border/30`}>
+              <h3 className="font-semibold text-sm tracking-wide">{column.title}</h3>
+              <span className="text-xs font-mono bg-white/10 px-2 py-0.5 rounded-md min-w-[1.75rem] text-center">
                 {tasksByStatus[column.key]?.length || 0}
               </span>
             </div>
 
             {/* Column Body */}
-            <div className="flex-1 p-3 space-y-3 min-h-32">
+            <div className="flex-1 p-2.5 space-y-2.5 min-h-32 overflow-y-auto">
               {tasksByStatus[column.key]?.map(task => (
                 <div
                   key={task.id}
@@ -602,26 +649,89 @@ export function TaskBoardPanel() {
                       updateTaskUrl(task.id)
                     }
                   }}
-                  className={`bg-surface-1 rounded-lg p-3 cursor-pointer hover:bg-surface-2 transition-smooth border-l-4 ${priorityColors[task.priority]} ${
-                    draggedTask?.id === task.id ? 'opacity-50' : ''
-                  }`}
+                  className={`group bg-card rounded-lg p-3 cursor-pointer border border-border/40 shadow-sm hover:shadow-md hover:shadow-black/10 hover:border-border/70 transition-all duration-200 ease-out border-l-4 ${priorityColors[task.priority]} ${
+                    draggedTask?.id === task.id ? 'opacity-40 scale-[0.97] rotate-1' : ''
+                  } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background`}
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="text-foreground font-medium text-sm leading-tight">
-                      {task.title}
-                    </h4>
-                    <div className="flex items-center gap-2">
-                      {task.ticket_ref && (
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary">
-                          {task.ticket_ref}
-                        </span>
+                  {/* Drag handle + Title row */}
+                  <div className="flex items-start gap-2 mb-2">
+                    {/* Grip handle — visible on hover */}
+                    <svg className="w-3.5 h-3.5 mt-0.5 text-muted-foreground/0 group-hover:text-muted-foreground/40 transition-colors shrink-0 cursor-grab" viewBox="0 0 16 16" fill="currentColor">
+                      <circle cx="5" cy="3" r="1.5" /><circle cx="11" cy="3" r="1.5" />
+                      <circle cx="5" cy="8" r="1.5" /><circle cx="11" cy="8" r="1.5" />
+                      <circle cx="5" cy="13" r="1.5" /><circle cx="11" cy="13" r="1.5" />
+                    </svg>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start gap-2">
+                        <h4 className="text-foreground font-medium text-sm leading-tight line-clamp-2">
+                          {task.title}
+                        </h4>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {task.ticket_ref && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary font-mono">
+                              {task.ticket_ref}
+                            </span>
+                          )}
+                          {task.github_issue_number && task.github_repo && (
+                            <a
+                              href={`https://github.com/${task.github_repo}/issues/${task.github_issue_number}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] px-1.5 py-0.5 rounded bg-[#24292e]/30 text-gray-300 hover:text-white font-mono flex items-center gap-1 transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                              title={`GitHub issue #${task.github_issue_number}`}
+                            >
+                              <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                              #{task.github_issue_number}
+                            </a>
+                          )}
+                          {task.github_pr_number && task.github_repo && (
+                            <a
+                              href={`https://github.com/${task.github_repo}/pull/${task.github_pr_number}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`text-[10px] px-1.5 py-0.5 rounded font-mono flex items-center gap-1 transition-colors ${
+                                task.github_pr_state === 'merged' ? 'bg-purple-500/20 text-purple-400' :
+                                task.github_pr_state === 'closed' ? 'bg-red-500/20 text-red-400' :
+                                'bg-green-500/20 text-green-400'
+                              }`}
+                              onClick={(e) => e.stopPropagation()}
+                              title={`PR #${task.github_pr_number} (${task.github_pr_state || 'open'})`}
+                            >
+                              <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor"><path d="M7.177 3.073L9.573.677A.25.25 0 0110 .854v4.792a.25.25 0 01-.427.177L7.177 3.427a.25.25 0 010-.354zM3.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122v5.256a2.251 2.251 0 11-1.5 0V5.372A2.25 2.25 0 011.5 3.25zM11 2.5h-1V4h1a1 1 0 011 1v5.628a2.251 2.251 0 101.5 0V5A2.5 2.5 0 0011 2.5zm1 10.25a.75.75 0 111.5 0 .75.75 0 01-1.5 0zM3.75 12a.75.75 0 100 1.5.75.75 0 000-1.5z"/></svg>
+                              PR #{task.github_pr_number}
+                            </a>
+                          )}
+                          {task.aegisApproved && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                              Aegis
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {task.description && (
+                    <div className="mb-2 ml-5.5 line-clamp-2 overflow-hidden text-xs text-muted-foreground">
+                      <MarkdownRenderer content={task.description} preview />
+                    </div>
+                  )}
+
+                  {/* Footer: assignee, priority, timestamp */}
+                  <div className="flex items-center justify-between gap-2 ml-5.5 mt-auto pt-2 border-t border-border/20">
+                    <span className="flex items-center gap-1.5 min-w-0 text-xs text-muted-foreground">
+                      {task.assigned_to ? (
+                        <>
+                          <AgentAvatar name={getAgentName(task.assigned_to)} size="xs" />
+                          <span className="truncate max-w-[8rem]">{getAgentName(task.assigned_to)}</span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground/50 italic">Unassigned</span>
                       )}
-                      {task.aegisApproved && (
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-700 text-emerald-100">
-                          Aegis Approved
-                        </span>
-                      )}
-                      <span className={`text-xs px-2 py-1 rounded font-medium ${
+                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
                         task.priority === 'critical' ? 'bg-red-500/20 text-red-400' :
                         task.priority === 'high' ? 'bg-orange-500/20 text-orange-400' :
                         task.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
@@ -629,64 +739,34 @@ export function TaskBoardPanel() {
                       }`}>
                         {task.priority}
                       </span>
+                      <span className="text-[10px] text-muted-foreground/60">{formatTaskTimestamp(task.created_at)}</span>
                     </div>
                   </div>
-                  
-                  {task.description && (
-                    <div className="mb-2 line-clamp-3 overflow-hidden">
-                      <MarkdownRenderer content={task.description} preview />
-                    </div>
-                  )}
 
-                  <div className="flex justify-between items-center text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1.5 min-w-0">
-                      {task.assigned_to ? (
-                        <>
-                          <AgentAvatar name={getAgentName(task.assigned_to)} size="xs" />
-                          <span className="truncate">{getAgentName(task.assigned_to)}</span>
-                        </>
-                      ) : (
-                        <span>Unassigned</span>
-                      )}
-                    </span>
-                    <span className="font-medium">{formatTaskTimestamp(task.created_at)}</span>
-                  </div>
-
-                  {task.project_name && (
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Project: {task.project_name}
-                    </div>
-                  )}
-
+                  {/* Tags row */}
                   {task.tags && task.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
+                    <div className="flex flex-wrap gap-1 mt-2 ml-5.5">
                       {task.tags.slice(0, 3).map((tag, index) => (
                         <span
                           key={index}
-                          className={`text-xs px-2 py-0.5 rounded-full border font-medium ${getTagColor(tag)}`}
+                          className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${getTagColor(tag)}`}
                         >
                           {tag}
                         </span>
                       ))}
                       {task.tags.length > 3 && (
-                        <span className="text-muted-foreground text-xs font-medium">+{task.tags.length - 3}</span>
+                        <span className="text-muted-foreground/60 text-[10px]">+{task.tags.length - 3}</span>
                       )}
                     </div>
                   )}
 
-                  {/* Enhanced timestamp display */}
-                  {task.updated_at && task.updated_at !== task.created_at && (
-                    <div className="text-xs text-muted-foreground/70 mt-1">
-                      Updated {formatTaskTimestamp(task.updated_at)}
-                    </div>
-                  )}
-
+                  {/* Due date — prominent when overdue */}
                   {task.due_date && (
-                    <div className="mt-2 text-xs">
-                      <span className={`${
-                        task.due_date * 1000 < Date.now() ? 'text-red-400' : 'text-yellow-400'
+                    <div className="mt-1.5 ml-5.5 text-[10px]">
+                      <span className={`inline-flex items-center gap-1 ${
+                        task.due_date * 1000 < Date.now() ? 'text-red-400 font-medium' : 'text-muted-foreground/60'
                       }`}>
-                        Due: {formatTaskTimestamp(task.due_date)}
+                        {task.due_date * 1000 < Date.now() ? '!' : ''} Due {formatTaskTimestamp(task.due_date)}
                       </span>
                     </div>
                   )}
@@ -695,8 +775,12 @@ export function TaskBoardPanel() {
 
               {/* Empty State */}
               {tasksByStatus[column.key]?.length === 0 && (
-                <div className="text-center text-muted-foreground/50 py-8 text-sm">
-                  No tasks in {column.title.toLowerCase()}
+                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground/30">
+                  <svg className="w-8 h-8 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M9 12h6M12 9v6" strokeLinecap="round" />
+                  </svg>
+                  <span className="text-xs">Drop tasks here</span>
                 </div>
               )}
             </div>
@@ -720,6 +804,7 @@ export function TaskBoardPanel() {
             setSelectedTask(null)
             updateTaskUrl(null, 'replace')
           }}
+          onDelete={fetchData}
         />
       )}
 
@@ -761,7 +846,8 @@ function TaskDetailModal({
   projects,
   onClose,
   onUpdate,
-  onEdit
+  onEdit,
+  onDelete
 }: {
   task: Task
   agents: Agent[]
@@ -769,6 +855,7 @@ function TaskDetailModal({
   onClose: () => void
   onUpdate: () => void
   onEdit: (task: Task) => void
+  onDelete: () => void
 }) {
   const { currentUser } = useMissionControl()
   const commentAuthor = currentUser?.username || 'system'
@@ -917,19 +1004,35 @@ function TaskDetailModal({
           <div className="flex justify-between items-start mb-4">
             <h3 id="task-detail-title" className="text-xl font-bold text-foreground">{task.title}</h3>
             <div className="flex gap-2">
-              <button
-                onClick={() => onEdit(task)}
-                className="px-3 py-1.5 bg-primary/20 text-primary hover:bg-primary/30 rounded-md transition-smooth text-sm font-medium"
-              >
+              <Button variant="ghost" size="sm" onClick={() => onEdit(task)} className="text-primary hover:bg-primary/20">
                 Edit
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={async () => {
+                  if (!confirm(`Delete task "${task.title}"? This will also remove all comments.`)) return
+                  try {
+                    const res = await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' })
+                    if (!res.ok) throw new Error('Failed to delete task')
+                    onDelete()
+                    onClose()
+                  } catch {
+                    // task.deleted SSE will sync state if needed
+                  }
+                }}
+              >
+                Delete
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 onClick={onClose}
                 aria-label="Close task details"
-                className="text-muted-foreground hover:text-foreground text-2xl transition-smooth"
+                className="text-xl"
               >
                 ×
-              </button>
+              </Button>
             </div>
           </div>
           {task.description ? (
@@ -941,18 +1044,17 @@ function TaskDetailModal({
           )}
           <div className="flex gap-2 mt-4" role="tablist" aria-label="Task detail tabs">
             {(['details', 'comments', 'quality'] as const).map(tab => (
-              <button
+              <Button
                 key={tab}
                 role="tab"
+                size="sm"
+                variant={activeTab === tab ? 'default' : 'secondary'}
                 aria-selected={activeTab === tab}
                 aria-controls={`tabpanel-${tab}`}
                 onClick={() => setActiveTab(tab)}
-                className={`px-3 py-2 text-sm rounded-md transition-smooth ${
-                  activeTab === tab ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:bg-surface-2'
-                }`}
               >
                 {tab === 'details' ? 'Details' : tab === 'comments' ? 'Comments' : 'Quality Review'}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -995,6 +1097,49 @@ function TaskDetailModal({
                 <span className="text-muted-foreground">Created:</span>
                 <span className="text-foreground ml-2">{new Date(task.created_at * 1000).toLocaleDateString()}</span>
               </div>
+              {(task.github_issue_number || task.github_branch || task.github_pr_number) && (
+                <>
+                  <div className="col-span-2 mt-2 pt-2 border-t border-border/50">
+                    <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">GitHub</span>
+                  </div>
+                  {task.github_issue_number && task.github_repo && (
+                    <div>
+                      <span className="text-muted-foreground">Issue:</span>
+                      <a
+                        href={`https://github.com/${task.github_repo}/issues/${task.github_issue_number}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline ml-2 font-mono"
+                      >
+                        {task.github_repo}#{task.github_issue_number}
+                      </a>
+                    </div>
+                  )}
+                  {task.github_branch && (
+                    <div>
+                      <span className="text-muted-foreground">Branch:</span>
+                      <span className="text-foreground ml-2 font-mono text-xs">{task.github_branch}</span>
+                    </div>
+                  )}
+                  {task.github_pr_number && task.github_repo && (
+                    <div>
+                      <span className="text-muted-foreground">PR:</span>
+                      <a
+                        href={`https://github.com/${task.github_repo}/pull/${task.github_pr_number}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`ml-2 font-mono hover:underline ${
+                          task.github_pr_state === 'merged' ? 'text-purple-400' :
+                          task.github_pr_state === 'closed' ? 'text-red-400' :
+                          'text-green-400'
+                        }`}
+                      >
+                        #{task.github_pr_number} ({task.github_pr_state || 'open'})
+                      </a>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
@@ -1002,12 +1147,9 @@ function TaskDetailModal({
             <div id="tabpanel-comments" role="tabpanel" aria-label="Comments" className="mt-6">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-lg font-semibold text-foreground">Comments</h4>
-              <button
-                onClick={fetchComments}
-                className="text-xs text-blue-400 hover:text-blue-300"
-              >
+              <Button variant="link" size="xs" onClick={fetchComments} className="text-blue-400 hover:text-blue-300">
                 Refresh
-              </button>
+              </Button>
             </div>
 
             {commentError && (
@@ -1043,12 +1185,9 @@ function TaskDetailModal({
                 <p className="text-[11px] text-muted-foreground mt-1">Use <span className="font-mono">@</span> to mention users and agents.</p>
               </div>
               <div className="flex justify-end">
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-smooth text-sm"
-                >
+                <Button type="submit">
                   Add Comment
-                </button>
+                </Button>
               </div>
             </form>
 
@@ -1073,12 +1212,9 @@ function TaskDetailModal({
                   mentionTargets={mentionTargets}
                 />
                 <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    className="px-3 py-2 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-md hover:bg-purple-500/30 transition-smooth text-xs"
-                  >
+                  <Button type="submit" size="sm" className="bg-purple-500/20 text-purple-400 border border-purple-500/30 hover:bg-purple-500/30">
                     Broadcast
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
@@ -1130,12 +1266,9 @@ function TaskDetailModal({
                     className="flex-1 bg-surface-1 text-foreground border border-border rounded-md px-2 py-1 text-xs"
                     placeholder="Review notes (required)"
                   />
-                  <button
-                    type="submit"
-                    className="px-3 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-md text-xs"
-                  >
+                  <Button type="submit" variant="success" size="xs">
                     Submit
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
@@ -1296,19 +1429,12 @@ function CreateTaskModal({
           </div>
           
           <div className="flex gap-3 mt-6">
-            <button
-              type="submit"
-              className="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 transition-smooth"
-            >
+            <Button type="submit" className="flex-1">
               Create Task
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 bg-secondary text-muted-foreground py-2 rounded-md hover:bg-surface-2 transition-smooth"
-            >
+            </Button>
+            <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -1485,19 +1611,12 @@ function EditTaskModal({
           </div>
 
           <div className="flex gap-3 mt-6">
-            <button
-              type="submit"
-              className="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 transition-smooth"
-            >
+            <Button type="submit" className="flex-1">
               Save Changes
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 bg-secondary text-muted-foreground py-2 rounded-md hover:bg-surface-2 transition-smooth"
-            >
+            </Button>
+            <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -1505,164 +1624,3 @@ function EditTaskModal({
   )
 }
 
-function ProjectManagerModal({
-  onClose,
-  onChanged
-}: {
-  onClose: () => void
-  onChanged: () => Promise<void>
-}) {
-  const [projects, setProjects] = useState<Project[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [form, setForm] = useState({ name: '', ticket_prefix: '', description: '' })
-
-  const load = useCallback(async () => {
-    try {
-      setLoading(true)
-      const response = await fetch('/api/projects?includeArchived=1')
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Failed to load projects')
-      setProjects(data.projects || [])
-      setError(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load projects')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    load()
-  }, [load])
-
-  const createProject = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!form.name.trim()) return
-    try {
-      const response = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: form.name,
-          ticket_prefix: form.ticket_prefix,
-          description: form.description
-        })
-      })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Failed to create project')
-      setForm({ name: '', ticket_prefix: '', description: '' })
-      await load()
-      await onChanged()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create project')
-    }
-  }
-
-  const archiveProject = async (project: Project) => {
-    try {
-      const response = await fetch(`/api/projects/${project.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: project.status === 'active' ? 'archived' : 'active' })
-      })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Failed to update project')
-      await load()
-      await onChanged()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update project')
-    }
-  }
-
-  const deleteProject = async (project: Project) => {
-    if (!confirm(`Delete project "${project.name}"? Existing tasks will be moved to General.`)) return
-    try {
-      const response = await fetch(`/api/projects/${project.id}?mode=delete`, { method: 'DELETE' })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Failed to delete project')
-      await load()
-      await onChanged()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete project')
-    }
-  }
-
-  const dialogRef = useFocusTrap(onClose)
-
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="projects-title" className="bg-card border border-border rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 id="projects-title" className="text-xl font-bold text-foreground">Project Management</h3>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-2xl">×</button>
-          </div>
-
-          {error && <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded p-2">{error}</div>}
-
-          <form onSubmit={createProject} className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder="Project name"
-              className="bg-surface-1 text-foreground border border-border rounded-md px-3 py-2"
-              required
-            />
-            <input
-              type="text"
-              value={form.ticket_prefix}
-              onChange={(e) => setForm((prev) => ({ ...prev, ticket_prefix: e.target.value }))}
-              placeholder="Ticket prefix (e.g. PA)"
-              className="bg-surface-1 text-foreground border border-border rounded-md px-3 py-2"
-            />
-            <button type="submit" className="bg-primary text-primary-foreground rounded-md px-3 py-2 hover:bg-primary/90">
-              Add Project
-            </button>
-            <input
-              type="text"
-              value={form.description}
-              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-              placeholder="Description (optional)"
-              className="md:col-span-3 bg-surface-1 text-foreground border border-border rounded-md px-3 py-2"
-            />
-          </form>
-
-          {loading ? (
-            <div className="text-sm text-muted-foreground">Loading projects...</div>
-          ) : (
-            <div className="space-y-2">
-              {projects.map((project) => (
-                <div key={project.id} className="flex items-center justify-between border border-border rounded-md p-3">
-                  <div>
-                    <div className="text-sm font-medium text-foreground">{project.name}</div>
-                    <div className="text-xs text-muted-foreground">{project.ticket_prefix} · {project.slug} · {project.status}</div>
-                  </div>
-                  <div className="flex gap-2">
-                    {project.slug !== 'general' && (
-                      <>
-                        <button
-                          onClick={() => archiveProject(project)}
-                          className="px-3 py-1 text-xs rounded border border-border hover:bg-secondary"
-                        >
-                          {project.status === 'active' ? 'Archive' : 'Activate'}
-                        </button>
-                        <button
-                          onClick={() => deleteProject(project)}
-                          className="px-3 py-1 text-xs rounded border border-red-500/30 text-red-400 hover:bg-red-500/10"
-                        >
-                          Delete
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}

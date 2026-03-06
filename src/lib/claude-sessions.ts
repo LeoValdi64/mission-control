@@ -243,8 +243,17 @@ export function scanClaudeSessions(): SessionStats[] {
   return sessions
 }
 
-/** Scan and upsert sessions into the database */
-export async function syncClaudeSessions(): Promise<{ ok: boolean; message: string }> {
+// Throttle full disk scans — at most once per 30 seconds
+let lastSyncAt = 0
+let lastSyncResult: { ok: boolean; message: string } = { ok: true, message: 'Not yet scanned' }
+const SYNC_THROTTLE_MS = 30_000
+
+/** Scan and upsert sessions into the database (throttled to avoid repeated disk scans) */
+export async function syncClaudeSessions(force = false): Promise<{ ok: boolean; message: string }> {
+  const now = Date.now()
+  if (!force && lastSyncAt > 0 && (now - lastSyncAt) < SYNC_THROTTLE_MS) {
+    return lastSyncResult
+  }
   try {
     const sessions = scanClaudeSessions()
     if (sessions.length === 0) {
@@ -296,12 +305,13 @@ export async function syncClaudeSessions(): Promise<{ ok: boolean; message: stri
     })()
 
     const active = sessions.filter(s => s.isActive).length
-    return {
-      ok: true,
-      message: `Scanned ${upserted} session(s), ${active} active`,
-    }
+    lastSyncAt = Date.now()
+    lastSyncResult = { ok: true, message: `Scanned ${upserted} session(s), ${active} active` }
+    return lastSyncResult
   } catch (err: any) {
     logger.error({ err }, 'Claude session sync failed')
-    return { ok: false, message: `Scan failed: ${err.message}` }
+    lastSyncAt = Date.now()
+    lastSyncResult = { ok: false, message: `Scan failed: ${err.message}` }
+    return lastSyncResult
   }
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
 import { createClientLogger } from '@/lib/client-logger'
 import Link from 'next/link'
 
@@ -123,28 +124,25 @@ export function OverviewTab({
         <h4 className="text-sm font-medium text-foreground mb-3">Status Control</h4>
         <div className="flex gap-2 mb-3">
           {(['idle', 'busy', 'offline'] as const).map(status => (
-            <button
+            <Button
               key={status}
               onClick={() => onStatusUpdate(agent.name, status)}
-              className={`px-3 py-1 text-sm rounded transition-smooth ${
-                agent.status === status
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-muted-foreground hover:bg-surface-2'
-              }`}
+              variant={agent.status === status ? 'default' : 'secondary'}
+              size="sm"
             >
               {statusIcons[status]} {status}
-            </button>
+            </Button>
           ))}
         </div>
 
         {/* Wake Agent Button */}
         {agent.session_key && (
-          <button
+          <Button
             onClick={() => onWakeAgent(agent.name, agent.session_key!)}
-            className="w-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 py-2 rounded-md hover:bg-cyan-500/30 transition-smooth"
+            className="w-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/30"
           >
             Wake Agent via Session
-          </button>
+          </Button>
         )}
       </div>
 
@@ -174,12 +172,12 @@ export function OverviewTab({
             />
           </div>
           <div className="flex justify-end">
-            <button
+            <Button
               type="submit"
-              className="px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-smooth text-xs"
+              size="sm"
             >
               Send Message
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -188,13 +186,13 @@ export function OverviewTab({
       <div className="p-4 bg-surface-1/50 rounded-lg">
         <div className="flex justify-between items-center mb-3">
           <h4 className="text-sm font-medium text-foreground">Heartbeat Check</h4>
-          <button
+          <Button
             onClick={onPerformHeartbeat}
             disabled={loadingHeartbeat}
-            className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-smooth"
+            size="sm"
           >
             {loadingHeartbeat ? 'Checking...' : 'Check Now'}
-          </button>
+          </Button>
         </div>
         
         {heartbeatData && (
@@ -315,26 +313,27 @@ export function OverviewTab({
       <div className="flex gap-3 mt-6">
         {editing ? (
           <>
-            <button
+            <Button
               onClick={onSave}
-              className="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 transition-smooth"
+              className="flex-1"
             >
               Save Changes
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={onCancel}
-              className="flex-1 bg-secondary text-muted-foreground py-2 rounded-md hover:bg-surface-2 transition-smooth"
+              variant="secondary"
+              className="flex-1"
             >
               Cancel
-            </button>
+            </Button>
           </>
         ) : (
-          <button
+          <Button
             onClick={onEdit}
-            className="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 transition-smooth"
+            className="flex-1"
           >
             Edit Agent
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -387,12 +386,12 @@ export function SoulTab({
         <h4 className="text-lg font-medium text-foreground">SOUL Configuration</h4>
         <div className="flex gap-2">
           {!editing && (
-            <button
+            <Button
               onClick={() => setEditing(true)}
-              className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-smooth"
+              size="sm"
             >
               Edit SOUL
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -414,13 +413,13 @@ export function SoulTab({
                 </option>
               ))}
             </select>
-            <button
+            <Button
               onClick={() => selectedTemplate && handleLoadTemplate(selectedTemplate)}
               disabled={!selectedTemplate}
-              className="px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/30 rounded-md hover:bg-green-500/30 disabled:opacity-50 transition-smooth"
+              variant="success"
             >
               Load
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -452,21 +451,22 @@ export function SoulTab({
       {/* Actions */}
       {editing && (
         <div className="flex gap-3">
-          <button
+          <Button
             onClick={handleSave}
-            className="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 transition-smooth"
+            className="flex-1"
           >
             Save SOUL
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => {
               setEditing(false)
               setContent(soulContent)
             }}
-            className="flex-1 bg-secondary text-muted-foreground py-2 rounded-md hover:bg-surface-2 transition-smooth"
+            variant="secondary"
+            className="flex-1"
           >
             Cancel
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -523,21 +523,22 @@ export function MemoryTab({
         <div className="flex gap-2">
           {!editing && (
             <>
-              <button
+              <Button
                 onClick={() => {
                   setAppendMode(true)
                   setEditing(true)
                 }}
-                className="px-3 py-1 text-sm bg-green-500/20 text-green-400 border border-green-500/30 rounded-md hover:bg-green-500/30 transition-smooth"
+                variant="success"
+                size="sm"
               >
                 Add Entry
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => setEditing(true)}
-                className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-smooth"
+                size="sm"
               >
                 Edit Memory
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -592,30 +593,31 @@ export function MemoryTab({
       {/* Actions */}
       {editing && (
         <div className="flex gap-3">
-          <button
+          <Button
             onClick={handleSave}
-            className="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 transition-smooth"
+            className="flex-1"
           >
             {appendMode ? 'Add Entry' : 'Save Memory'}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => {
               setEditing(false)
               setAppendMode(false)
               setContent(workingMemory)
               setNewEntry('')
             }}
-            className="flex-1 bg-secondary text-muted-foreground py-2 rounded-md hover:bg-surface-2 transition-smooth"
+            variant="secondary"
+            className="flex-1"
           >
             Cancel
-          </button>
+          </Button>
           {!appendMode && (
-            <button
+            <Button
               onClick={handleClear}
-              className="px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/30 rounded-md hover:bg-red-500/30 transition-smooth"
+              variant="destructive"
             >
               Clear All
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -982,7 +984,7 @@ export function CreateAgentModal({
                 ))}
               </div>
             </div>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-2xl">x</button>
+            <Button onClick={onClose} variant="ghost" size="icon-sm" className="text-2xl">x</Button>
           </div>
         </div>
 
@@ -998,11 +1000,12 @@ export function CreateAgentModal({
           {step === 1 && (
             <div className="grid grid-cols-2 gap-3">
               {TEMPLATES.map(tmpl => (
-                <button
+                <Button
                   key={tmpl.type}
                   onClick={() => { selectTemplate(tmpl.type); setStep(2) }}
-                  className={`p-4 rounded-lg border text-left transition-smooth hover:bg-surface-1 ${
-                    selectedTemplate === tmpl.type ? 'border-primary bg-primary/5' : 'border-border'
+                  variant="outline"
+                  className={`p-4 h-auto text-left flex flex-col items-start ${
+                    selectedTemplate === tmpl.type ? 'border-primary bg-primary/5' : ''
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-2">
@@ -1018,13 +1021,14 @@ export function CreateAgentModal({
                       {tmpl.toolCount} tools
                     </span>
                   </div>
-                </button>
+                </Button>
               ))}
               {/* Custom option */}
-              <button
+              <Button
                 onClick={() => { selectTemplate(null); setStep(2) }}
-                className={`p-4 rounded-lg border text-left transition-smooth hover:bg-surface-1 border-dashed ${
-                  selectedTemplate === null ? 'border-primary' : 'border-border'
+                variant="outline"
+                className={`p-4 h-auto text-left flex flex-col items-start border-dashed ${
+                  selectedTemplate === null ? 'border-primary' : ''
                 }`}
               >
                 <div className="flex items-center gap-2 mb-2">
@@ -1032,7 +1036,7 @@ export function CreateAgentModal({
                   <span className="font-semibold text-foreground">Custom</span>
                 </div>
                 <p className="text-xs text-muted-foreground">Start from scratch with blank config</p>
-              </button>
+              </Button>
             </div>
           )}
 
@@ -1090,19 +1094,20 @@ export function CreateAgentModal({
                 <label className="block text-sm text-muted-foreground mb-1">Model Tier</label>
                 <div className="flex gap-2">
                   {(['opus', 'sonnet', 'haiku'] as const).map(tier => (
-                    <button
+                    <Button
                       key={tier}
                       onClick={() => setFormData(prev => ({
                         ...prev,
                         modelTier: tier,
                         modelPrimary: DEFAULT_MODEL_BY_TIER[tier],
                       }))}
-                      className={`flex-1 px-3 py-2 text-sm rounded-md border transition-smooth ${
-                        formData.modelTier === tier ? MODEL_TIER_COLORS[tier] + ' border' : 'bg-surface-1 text-muted-foreground border-border'
+                      variant={formData.modelTier === tier ? 'outline' : 'secondary'}
+                      className={`flex-1 ${
+                        formData.modelTier === tier ? MODEL_TIER_COLORS[tier] : ''
                       }`}
                     >
                       {MODEL_TIER_LABELS[tier]}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -1227,34 +1232,34 @@ export function CreateAgentModal({
         {/* Footer */}
         <div className="p-6 border-t border-border flex gap-3 flex-shrink-0">
           {step > 1 && (
-            <button
+            <Button
               onClick={() => setStep((step - 1) as 1 | 2)}
-              className="px-4 py-2 bg-secondary text-muted-foreground rounded-md hover:bg-surface-2 transition-smooth"
+              variant="secondary"
             >
               Back
-            </button>
+            </Button>
           )}
           <div className="flex-1" />
           {step < 3 ? (
-            <button
+            <Button
               onClick={() => setStep((step + 1) as 2 | 3)}
               disabled={step === 2 && !formData.name.trim()}
-              className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-smooth"
+              size="lg"
             >
               Next
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
               onClick={handleCreate}
               disabled={isCreating || !formData.name.trim()}
-              className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-smooth"
+              size="lg"
             >
               {isCreating ? 'Creating...' : 'Create Agent'}
-            </button>
+            </Button>
           )}
-          <button onClick={onClose} className="px-4 py-2 bg-secondary text-muted-foreground rounded-md hover:bg-surface-2 transition-smooth">
+          <Button onClick={onClose} variant="secondary">
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -1473,19 +1478,20 @@ export function ConfigTab({
       <div className="flex justify-between items-center">
         <h4 className="text-lg font-medium text-foreground">OpenClaw Config</h4>
         <div className="flex gap-2">
-          <button
+          <Button
             onClick={() => setShowJson(!showJson)}
-            className="px-3 py-1 text-xs bg-surface-2 text-muted-foreground rounded-md hover:bg-surface-1 transition-smooth"
+            variant="secondary"
+            size="xs"
           >
             {showJson ? 'Structured' : 'JSON'}
-          </button>
+          </Button>
           {!editing && (
-            <button
+            <Button
               onClick={() => setEditing(true)}
-              className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-smooth"
+              size="sm"
             >
               Edit
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -1557,15 +1563,16 @@ export function ConfigTab({
                           list="agent-model-suggestions"
                           className="flex-1 bg-surface-1 text-foreground rounded px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary/50"
                         />
-                        <button
+                        <Button
                           onClick={() => {
                             const next = modelFallbacks.filter((_: string, i: number) => i !== index)
                             updateModelConfig((current) => ({ ...current, fallbacks: next }))
                           }}
-                          className="px-3 py-2 text-xs bg-red-500/10 text-red-400 border border-red-500/30 rounded hover:bg-red-500/20 transition-smooth"
+                          variant="destructive"
+                          size="xs"
                         >
                           Remove
-                        </button>
+                        </Button>
                       </div>
                     ))}
                     <div className="flex gap-2">
@@ -1576,12 +1583,13 @@ export function ConfigTab({
                         placeholder="Add fallback model"
                         className="flex-1 bg-surface-1 text-foreground rounded px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary/50"
                       />
-                      <button
+                      <Button
                         onClick={addFallbackModel}
-                        className="px-3 py-2 text-xs bg-secondary text-foreground rounded hover:bg-surface-2 transition-smooth"
+                        variant="secondary"
+                        size="xs"
                       >
                         Add
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -1677,13 +1685,13 @@ export function ConfigTab({
               <div className="flex items-center justify-between">
                 <label className="text-xs text-muted-foreground font-medium">identity.md</label>
                 {editing && onSaveWorkspaceFile && (
-                  <button
+                  <Button
                     onClick={() => saveWorkspaceFile('identity.md')}
                     disabled={savingIdentityMd}
-                    className="px-2.5 py-1 text-2xs bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50 transition-smooth"
+                    size="xs"
                   >
                     {savingIdentityMd ? 'Saving...' : 'Save identity.md'}
-                  </button>
+                  </Button>
                 )}
               </div>
               {editing ? (
@@ -1705,13 +1713,9 @@ export function ConfigTab({
               <div className="flex items-center justify-between">
                 <label className="text-xs text-muted-foreground font-medium">agent.md</label>
                 {editing && onSaveWorkspaceFile && (
-                  <button
-                    onClick={() => saveWorkspaceFile('agent.md')}
-                    disabled={savingAgentMd}
-                    className="px-2.5 py-1 text-2xs bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50 transition-smooth"
-                  >
+                  <Button onClick={() => saveWorkspaceFile('agent.md')} disabled={savingAgentMd} size="xs">
                     {savingAgentMd ? 'Saving...' : 'Save agent.md'}
-                  </button>
+                  </Button>
                 )}
               </div>
               {editing ? (
@@ -1816,7 +1820,7 @@ export function ConfigTab({
                     {toolAllow.map((tool: string, i: number) => (
                       <span key={`${tool}-${i}`} className="px-2 py-0.5 text-xs bg-green-500/10 text-green-400 rounded border border-green-500/20 flex items-center gap-1">
                         {tool}
-                        <button onClick={() => removeTool('allow', i)} className="text-green-400/60 hover:text-green-400 ml-1">&times;</button>
+                        <Button onClick={() => removeTool('allow', i)} variant="ghost" size="icon-xs" className="text-green-400/60 hover:text-green-400 ml-1 h-auto w-auto p-0">&times;</Button>
                       </span>
                     ))}
                   </div>
@@ -1828,12 +1832,14 @@ export function ConfigTab({
                       placeholder="Add allowed tool name"
                       className="flex-1 bg-surface-1 text-foreground rounded px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
                     />
-                    <button
+                    <Button
                       onClick={() => { addTool('allow', newAllowTool); setNewAllowTool('') }}
-                      className="px-3 py-2 text-xs bg-green-500/20 text-green-400 border border-green-500/30 rounded hover:bg-green-500/30 transition-smooth"
+                      variant="outline"
+                      size="sm"
+                      className="bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30"
                     >
                       Add
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 <div>
@@ -1842,7 +1848,7 @@ export function ConfigTab({
                     {toolDeny.map((tool: string, i: number) => (
                       <span key={`${tool}-${i}`} className="px-2 py-0.5 text-xs bg-red-500/10 text-red-400 rounded border border-red-500/20 flex items-center gap-1">
                         {tool}
-                        <button onClick={() => removeTool('deny', i)} className="text-red-400/60 hover:text-red-400 ml-1">&times;</button>
+                        <Button onClick={() => removeTool('deny', i)} variant="ghost" size="icon-xs" className="text-red-400/60 hover:text-red-400 ml-1 h-auto w-auto p-0">&times;</Button>
                       </span>
                     ))}
                   </div>
@@ -1854,12 +1860,14 @@ export function ConfigTab({
                       placeholder="Add denied tool name"
                       className="flex-1 bg-surface-1 text-foreground rounded px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
                     />
-                    <button
+                    <Button
                       onClick={() => { addTool('deny', newDenyTool); setNewDenyTool('') }}
-                      className="px-3 py-2 text-xs bg-red-500/20 text-red-400 border border-red-500/30 rounded hover:bg-red-500/30 transition-smooth"
+                      variant="outline"
+                      size="sm"
+                      className="bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30"
                     >
                       Add
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -1929,23 +1937,19 @@ export function ConfigTab({
       {/* Actions */}
       {editing && (
         <div className="flex gap-3 pt-2">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 disabled:opacity-50 transition-smooth"
-          >
+          <Button onClick={handleSave} disabled={saving} className="flex-1">
             {saving ? 'Saving...' : 'Save'}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => {
               setEditing(false)
               setConfig(agent.config || {})
               setJsonInput(JSON.stringify(agent.config || {}, null, 2))
             }}
-            className="px-4 py-2 bg-secondary text-muted-foreground rounded-md hover:bg-surface-2 transition-smooth"
+            variant="secondary"
           >
             Cancel
-          </button>
+          </Button>
         </div>
       )}
     </div>

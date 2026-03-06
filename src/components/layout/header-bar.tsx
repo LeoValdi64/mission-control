@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useMissionControl } from '@/store'
 import { useWebSocket } from '@/lib/websocket'
 import { useNavigateToPanel } from '@/lib/navigation'
-import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { Button } from '@/components/ui/button'
+import { ThemeSelector } from '@/components/ui/theme-selector'
 import { DigitalClock } from '@/components/ui/digital-clock'
 import { APP_VERSION } from '@/lib/version'
 
@@ -19,7 +20,7 @@ interface SearchResult {
 }
 
 export function HeaderBar() {
-  const { activeTab, connection, sessions, chatPanelOpen, setChatPanelOpen, notifications, unreadNotificationCount, currentUser, setCurrentUser } = useMissionControl()
+  const { activeTab, connection, sessions, chatPanelOpen, setChatPanelOpen, notifications, unreadNotificationCount, currentUser, setCurrentUser, activeTenant, activeProject } = useMissionControl()
   const { isConnected, reconnect } = useWebSocket()
   const navigateToPanel = useNavigateToPanel()
 
@@ -136,6 +137,19 @@ export function HeaderBar() {
         <h1 className="text-sm font-semibold text-foreground">
           {tabLabels[activeTab] || 'Mission Control'}
         </h1>
+        {activeProject && (
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => navigateToPanel('tasks')}
+            className="hidden md:flex items-center gap-1 text-2xs bg-secondary/50"
+            title={`Scoped to project: ${activeProject.name}`}
+          >
+            <span className="text-muted-foreground/60">{activeTenant?.display_name || 'Default'}</span>
+            <span className="text-muted-foreground/40">/</span>
+            <span className="font-medium text-foreground">{activeProject.name}</span>
+          </Button>
+        )}
         <span className="text-2xs text-muted-foreground font-mono-tight">
           v{APP_VERSION}
         </span>
@@ -143,14 +157,16 @@ export function HeaderBar() {
 
       {/* Center: Search trigger + Quick stats (desktop only) */}
       <div className="hidden md:flex items-center gap-4">
-        <button
+        <Button
+          variant="outline"
+          size="xs"
           onClick={() => { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 50) }}
-          className="flex items-center gap-2 h-7 px-3 rounded-md bg-secondary/50 border border-border text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
+          className="bg-secondary/50 hover:border-primary/30"
         >
           <SearchIcon />
           <span>Search...</span>
           <kbd className="text-2xs px-1 py-0.5 rounded bg-muted border border-border font-mono ml-2">&#8984;K</kbd>
-        </button>
+        </Button>
 
         <Stat label="Sessions" value={`${activeSessions}/${sessions.length}`} />
         <ConnectionBadge connection={connection} onReconnect={reconnect} />
@@ -167,31 +183,33 @@ export function HeaderBar() {
         </div>
 
         {/* Mobile search trigger */}
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() => { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 50) }}
-          className="md:hidden h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-smooth flex items-center justify-center"
+          className="md:hidden"
           title="Search"
         >
           <SearchIcon />
-        </button>
+        </Button>
 
         {/* Chat toggle */}
-        <button
+        <Button
+          variant={chatPanelOpen ? 'default' : 'ghost'}
+          size="sm"
           onClick={() => setChatPanelOpen(!chatPanelOpen)}
-          className={`h-8 px-2.5 rounded-md text-xs font-medium transition-smooth flex items-center gap-1.5 ${
-            chatPanelOpen
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-          }`}
+          className="px-2.5"
         >
           <ChatIcon />
           Chat
-        </button>
+        </Button>
 
         {/* Notifications */}
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() => navigateToPanel('notifications')}
-          className="h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-smooth flex items-center justify-center relative"
+          className="relative"
         >
           <BellIcon />
           {unreadNotificationCount > 0 && (
@@ -199,9 +217,9 @@ export function HeaderBar() {
               {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
             </span>
           )}
-        </button>
+        </Button>
 
-        <ThemeToggle />
+        <ThemeSelector />
 
         {/* User menu */}
         {currentUser && (
@@ -212,7 +230,7 @@ export function HeaderBar() {
       {/* Search overlay (renders at fixed position, works on all breakpoints) */}
       {searchOpen && (
         <div ref={searchRef} className="fixed inset-0 z-50">
-          <div className="absolute inset-0" onClick={() => setSearchOpen(false)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSearchOpen(false)} />
           <div className="absolute top-12 left-1/2 -translate-x-1/2 w-[min(24rem,calc(100vw-2rem))] bg-card border border-border rounded-lg shadow-xl overflow-hidden">
             <div className="p-2 border-b border-border">
               <input
@@ -230,10 +248,11 @@ export function HeaderBar() {
                 <div className="p-4 text-center text-xs text-muted-foreground">Searching...</div>
               ) : searchResults.length > 0 ? (
                 searchResults.map((r, i) => (
-                  <button
+                  <Button
                     key={`${r.type}-${r.id}-${i}`}
+                    variant="ghost"
                     onClick={() => handleResultClick(r)}
-                    className="w-full text-left px-3 py-2 hover:bg-secondary/50 transition-colors flex items-start gap-2.5"
+                    className="w-full text-left px-3 py-2 h-auto rounded-none justify-start items-start gap-2.5"
                   >
                     <span className={`text-2xs font-medium w-5 h-5 rounded flex items-center justify-center shrink-0 mt-0.5 ${typeColors[r.type] || 'bg-muted text-muted-foreground'}`}>
                       {typeIcons[r.type] || '?'}
@@ -243,7 +262,7 @@ export function HeaderBar() {
                       {r.subtitle && <div className="text-2xs text-muted-foreground truncate">{r.subtitle}</div>}
                       {r.excerpt && <div className="text-2xs text-muted-foreground/70 truncate mt-0.5">{r.excerpt}</div>}
                     </div>
-                  </button>
+                  </Button>
                 ))
               ) : searchQuery.length >= 2 ? (
                 <div className="p-4 text-center text-xs text-muted-foreground">No results found</div>
@@ -273,7 +292,7 @@ function MobileConnectionDot({
   let title: string
 
   if (isLocal) {
-    dotClass = 'bg-blue-500'
+    dotClass = 'bg-void-cyan'
     title = 'Local Mode'
   } else if (connection.isConnected) {
     dotClass = 'bg-green-500'
@@ -287,15 +306,17 @@ function MobileConnectionDot({
   }
 
   return (
-    <button
+    <Button
+      variant="ghost"
+      size="icon-sm"
       onClick={!isLocal && !connection.isConnected ? onReconnect : undefined}
-      className={`md:hidden flex items-center justify-center h-8 w-8 rounded-md ${
-        isLocal || connection.isConnected ? 'cursor-default' : 'hover:bg-secondary cursor-pointer'
-      } transition-smooth`}
+      className={`md:hidden ${
+        isLocal || connection.isConnected ? 'cursor-default hover:bg-transparent' : ''
+      }`}
       title={title}
     >
       <span className={`w-2 h-2 rounded-full ${dotClass}`} />
-    </button>
+    </Button>
   )
 }
 
@@ -314,8 +335,8 @@ function ConnectionBadge({
     return (
       <div className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md cursor-default">
         <span className="text-muted-foreground">Gateway</span>
-        <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-        <span className="font-medium font-mono-tight text-blue-400">Local</span>
+        <span className="w-1.5 h-1.5 rounded-full bg-void-cyan" />
+        <span className="font-medium font-mono-tight text-void-cyan">Local</span>
       </div>
     )
   }
@@ -335,12 +356,14 @@ function ConnectionBadge({
   }
 
   return (
-    <button
+    <Button
+      variant="ghost"
+      size="xs"
       onClick={!connection.isConnected ? onReconnect : undefined}
-      className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md transition-smooth ${
+      className={`gap-1.5 ${
         connection.isConnected
-          ? 'cursor-default'
-          : 'hover:bg-secondary cursor-pointer'
+          ? 'cursor-default hover:bg-transparent'
+          : ''
       }`}
       title={connection.isConnected ? 'Gateway connected' : 'Click to reconnect'}
     >
@@ -351,7 +374,7 @@ function ConnectionBadge({
       }`}>
         {label}
       </span>
-    </button>
+    </Button>
   )
 }
 
@@ -406,13 +429,15 @@ function UserMenu({ user, onLogout }: { user: { username: string; display_name: 
 
   return (
     <div className="relative">
-      <button
+      <Button
+        variant="ghost"
+        size="icon-sm"
         onClick={() => setOpen(!open)}
-        className="h-8 w-8 rounded-full bg-primary/20 text-primary text-xs font-semibold flex items-center justify-center hover:bg-primary/30 transition-smooth"
+        className="rounded-full bg-primary/20 text-primary text-xs font-semibold hover:bg-primary/30"
         title={`${user.display_name} (${user.role})`}
       >
         {initials}
-      </button>
+      </Button>
 
       {open && (
         <>
@@ -422,18 +447,20 @@ function UserMenu({ user, onLogout }: { user: { username: string; display_name: 
               <p className="text-sm font-medium text-foreground">{user.display_name}</p>
               <p className="text-xs text-muted-foreground">{user.role}</p>
             </div>
-            <button
+            <Button
+              variant="ghost"
               onClick={() => { setOpen(false); setShowPasswordDialog(true) }}
-              className="w-full px-3 py-2 text-sm text-left text-muted-foreground hover:text-foreground hover:bg-secondary transition-smooth"
+              className="w-full px-3 py-2 h-auto text-sm text-left justify-start rounded-none"
             >
               Change password
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
               onClick={handleLogout}
-              className="w-full px-3 py-2 text-sm text-left text-muted-foreground hover:text-foreground hover:bg-secondary transition-smooth"
+              className="w-full px-3 py-2 h-auto text-sm text-left justify-start rounded-none"
             >
               Sign out
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -541,20 +568,23 @@ function PasswordDialog({ onClose }: { onClose: () => void }) {
               )}
 
               <div className="flex gap-2 pt-1">
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   type="button"
                   onClick={onClose}
-                  className="flex-1 h-8 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary border border-border transition-smooth"
+                  className="flex-1"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  size="sm"
                   type="submit"
                   disabled={loading}
-                  className="flex-1 h-8 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-smooth disabled:opacity-50"
+                  className="flex-1"
                 >
                   {loading ? 'Saving...' : 'Save'}
-                </button>
+                </Button>
               </div>
             </form>
           )}

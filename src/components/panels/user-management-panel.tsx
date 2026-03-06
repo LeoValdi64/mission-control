@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
 import { useMissionControl } from '@/store'
 
 interface UserRecord {
@@ -229,12 +230,12 @@ export function UserManagementPanel() {
           <h2 className="text-lg font-semibold text-foreground">Users</h2>
           <p className="text-sm text-muted-foreground">{users.length} registered users · {pendingRequests.length} pending approvals</p>
         </div>
-        <button
+        <Button
           onClick={() => setShowCreate(!showCreate)}
-          className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-smooth"
+          size="sm"
         >
           {showCreate ? 'Cancel' : '+ Add Local User'}
-        </button>
+        </Button>
       </div>
 
       {feedback && (
@@ -267,20 +268,22 @@ export function UserManagementPanel() {
                     <td className="px-3 py-2 text-xs text-muted-foreground">{formatDate(req.last_attempt_at)}</td>
                     <td className="px-3 py-2 text-right">
                       <div className="inline-flex gap-2">
-                        <button
+                        <Button
                           onClick={() => reviewRequest(req, 'approve')}
                           disabled={processingRequestId === req.id}
-                          className="h-7 px-2 rounded border border-emerald-500/30 text-emerald-400 text-xs disabled:opacity-50 hover:bg-emerald-500/10"
+                          variant="success"
+                          size="xs"
                         >
                           Approve
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           onClick={() => reviewRequest(req, 'reject')}
                           disabled={processingRequestId === req.id}
-                          className="h-7 px-2 rounded border border-red-500/30 text-red-400 text-xs disabled:opacity-50 hover:bg-red-500/10"
+                          variant="destructive"
+                          size="xs"
                         >
                           Reject
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -305,9 +308,9 @@ export function UserManagementPanel() {
             </select>
           </div>
           <div className="flex justify-end">
-            <button onClick={handleCreate} disabled={!createForm.username || !createForm.password || creating} className="h-8 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+            <Button onClick={handleCreate} disabled={!createForm.username || !createForm.password || creating} size="sm">
               {creating ? 'Creating...' : 'Create User'}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -343,8 +346,8 @@ export function UserManagementPanel() {
                       <input type="password" value={editForm.password} onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))} placeholder="New password (optional)" className="h-8 px-2 rounded bg-secondary border border-border text-sm text-foreground w-full" disabled={(u.provider || 'local') !== 'local'} />
                     </td>
                     <td className="px-4 py-2.5 text-right space-x-2">
-                      <button onClick={handleEdit} disabled={saving} className="h-7 px-2 rounded bg-primary text-primary-foreground text-xs">Save</button>
-                      <button onClick={() => setEditingId(null)} className="h-7 px-2 rounded border border-border text-xs">Cancel</button>
+                      <Button onClick={handleEdit} disabled={saving} size="xs">Save</Button>
+                      <Button onClick={() => setEditingId(null)} variant="outline" size="xs">Cancel</Button>
                     </td>
                   </>
                 ) : (
@@ -369,9 +372,9 @@ export function UserManagementPanel() {
                     </td>
                     <td className="px-4 py-2.5 text-xs text-muted-foreground hidden md:table-cell">{formatDate(u.last_login_at)}</td>
                     <td className="px-4 py-2.5 text-right space-x-2">
-                      <button onClick={() => startEdit(u)} className="h-7 px-2 rounded border border-border text-xs">Edit</button>
+                      <Button onClick={() => startEdit(u)} variant="outline" size="xs">Edit</Button>
                       {u.id !== currentUser?.id && (
-                        <button onClick={() => handleDelete(u)} className="h-7 px-2 rounded-md bg-destructive/20 text-destructive text-xs hover:bg-destructive/30">Delete</button>
+                        <Button onClick={() => handleDelete(u)} variant="destructive" size="xs">Delete</Button>
                       )}
                     </td>
                   </>

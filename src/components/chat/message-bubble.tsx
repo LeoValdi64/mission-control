@@ -139,7 +139,7 @@ export function MessageBubble({ message, isHuman, isGrouped }: MessageBubbleProp
         )}
 
         {/* Bubble */}
-        <div className={`rounded-xl px-3 py-2 text-sm leading-relaxed ${
+        <div className={`rounded-lg px-3 py-2 text-sm leading-relaxed ${
           isHuman
             ? 'bg-primary text-primary-foreground rounded-tr-sm'
             : isCommand

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
 import { useMissionControl } from '@/store'
 import { useSmartPoll } from '@/lib/use-smart-poll'
 import { createClientLogger } from '@/lib/client-logger'
@@ -245,32 +246,28 @@ export function LogViewerPanel() {
 
           {/* Controls */}
           <div className="flex items-end space-x-2">
-            <button
+            <Button
               onClick={() => setIsAutoScroll(!isAutoScroll)}
-              className={`px-3 py-2 text-sm rounded-md font-medium transition-colors ${
-                isAutoScroll
-                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                  : 'bg-secondary text-muted-foreground border border-border'
-              }`}
+              variant={isAutoScroll ? 'success' : 'outline'}
             >
               {isAutoScroll ? 'Auto' : 'Manual'}
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleScrollToBottom}
-              className="px-3 py-2 text-sm bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-md font-medium hover:bg-blue-500/30 transition-colors"
+              className="bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30"
             >
               Bottom
-            </button>
+            </Button>
           </div>
 
           {/* Clear Logs */}
           <div className="flex items-end">
-            <button
+            <Button
               onClick={clearLogs}
-              className="px-3 py-2 text-sm bg-red-500/20 text-red-400 border border-red-500/30 rounded-md font-medium hover:bg-red-500/30 transition-colors"
+              variant="destructive"
             >
               Clear
-            </button>
+            </Button>
           </div>
         </div>
       </div>

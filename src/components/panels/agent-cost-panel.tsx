@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
 import { createClientLogger } from '@/lib/client-logger'
 import {
   PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -109,17 +110,13 @@ export function AgentCostPanel() {
           </div>
           <div className="flex space-x-2">
             {(['hour', 'day', 'week', 'month'] as const).map((tf) => (
-              <button
+              <Button
                 key={tf}
                 onClick={() => setSelectedTimeframe(tf)}
-                className={`px-4 py-2 text-sm rounded-md font-medium transition-colors ${
-                  selectedTimeframe === tf
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-                }`}
+                variant={selectedTimeframe === tf ? 'default' : 'secondary'}
               >
                 {tf.charAt(0).toUpperCase() + tf.slice(1)}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -134,9 +131,9 @@ export function AgentCostPanel() {
         <div className="text-center text-muted-foreground py-12">
           <div className="text-lg mb-2">No agent cost data available</div>
           <div className="text-sm">Cost data will appear once agents start using tokens</div>
-          <button onClick={loadData} className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">
+          <Button onClick={loadData} className="mt-4">
             Refresh
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="space-y-6">
@@ -241,9 +238,10 @@ export function AgentCostPanel() {
             <div className="space-y-2 max-h-[500px] overflow-y-auto">
               {sortedAgents.map(([name, a], index) => (
                 <div key={name} className="border border-border rounded-lg overflow-hidden">
-                  <button
+                  <Button
                     onClick={() => setExpandedAgent(expandedAgent === name ? null : name)}
-                    className="w-full p-4 flex items-center justify-between hover:bg-secondary/50 transition-colors text-left"
+                    variant="ghost"
+                    className="w-full p-4 h-auto flex items-center justify-between text-left"
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-xs text-muted-foreground w-6">#{index + 1}</span>
@@ -268,7 +266,7 @@ export function AgentCostPanel() {
                         <polyline points="4,6 8,10 12,6" />
                       </svg>
                     </div>
-                  </button>
+                  </Button>
 
                   {expandedAgent === name && (
                     <div className="px-4 pb-4 border-t border-border bg-secondary/30">

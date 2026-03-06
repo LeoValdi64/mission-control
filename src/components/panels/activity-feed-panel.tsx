@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { Button } from '@/components/ui/button'
 import { useSmartPoll } from '@/lib/use-smart-poll'
 
 interface Activity {
@@ -142,22 +143,19 @@ export function ActivityFeedPanel() {
         </div>
 
         <div className="flex gap-2">
-          <button
+          <Button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`px-3 py-1.5 text-sm rounded-md transition-smooth ${
-              autoRefresh
-                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                : 'bg-secondary text-muted-foreground'
-            }`}
+            variant={autoRefresh ? 'success' : 'secondary'}
+            size="sm"
           >
             {autoRefresh ? 'Live' : 'Paused'}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => fetchActivities()}
-            className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-smooth"
+            size="sm"
           >
             Refresh
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -214,12 +212,14 @@ export function ActivityFeedPanel() {
       {error && (
         <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 m-4 rounded-lg text-sm flex items-center justify-between">
           <span>{error}</span>
-          <button
+          <Button
             onClick={() => setError(null)}
+            variant="ghost"
+            size="icon-sm"
             className="text-red-400/60 hover:text-red-400 ml-2"
           >
             ×
-          </button>
+          </Button>
         </div>
       )}
 

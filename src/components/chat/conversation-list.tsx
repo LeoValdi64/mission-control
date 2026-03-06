@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { useMissionControl, Conversation, Agent } from '@/store'
 import { useSmartPoll } from '@/lib/use-smart-poll'
 import { createClientLogger } from '@/lib/client-logger'
+import { Button } from '@/components/ui/button'
 
 const log = createClientLogger('ConversationList')
 
@@ -94,15 +95,17 @@ export function ConversationList({ onNewConversation }: ConversationListProps) {
       <div className="p-3 border-b border-border flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Chats</h3>
-          <button
+          <Button
             onClick={() => setShowNewChat(!showNewChat)}
-            className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-smooth"
+            variant="ghost"
+            size="icon-xs"
+            className="w-6 h-6"
             title="New conversation"
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M8 3v10M3 8h10" />
             </svg>
-          </button>
+          </Button>
         </div>
         <div className="relative">
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/50">
@@ -124,18 +127,20 @@ export function ConversationList({ onNewConversation }: ConversationListProps) {
         <div className="border-b border-border p-2 bg-surface-1 max-h-48 overflow-y-auto flex-shrink-0 fade-in">
           <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wider mb-1 px-1">Chat with agent</div>
           {agents.map((agent) => (
-            <button
+            <Button
               key={agent.id}
               onClick={() => {
                 onNewConversation(agent.name)
                 setShowNewChat(false)
               }}
-              className="w-full text-left px-2 py-1.5 rounded text-xs hover:bg-accent/50 flex items-center gap-2 transition-smooth"
+              variant="ghost"
+              size="xs"
+              className="w-full justify-start px-2 py-1.5 h-auto gap-2"
             >
               <div className={`w-1.5 h-1.5 rounded-full ${STATUS_COLORS[agent.status] || STATUS_COLORS.offline}`} />
               <span className="font-medium text-foreground">{agent.name}</span>
               <span className="text-muted-foreground/50 text-[10px] ml-auto truncate max-w-[60px]">{agent.role}</span>
-            </button>
+            </Button>
           ))}
           {agents.length === 0 && (
             <div className="text-xs text-muted-foreground/50 px-1 py-2">No agents registered</div>
@@ -156,16 +161,17 @@ export function ConversationList({ onNewConversation }: ConversationListProps) {
             const isActive = activeConversation === conv.id
 
             return (
-              <button
+              <Button
                 key={conv.id}
                 onClick={() => handleSelect(conv.id)}
-                className={`w-full text-left px-3 py-2.5 transition-smooth ${
+                variant="ghost"
+                className={`w-full justify-start h-auto px-3 py-2.5 rounded-none ${
                   isActive
                     ? 'bg-accent/60 border-l-2 border-primary'
-                    : 'hover:bg-surface-1 border-l-2 border-transparent'
+                    : 'border-l-2 border-transparent'
                 }`}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full">
                   {/* Mini avatar */}
                   <div className="relative flex-shrink-0">
                     <div className="w-7 h-7 rounded-full bg-surface-2 flex items-center justify-center text-[10px] font-bold text-muted-foreground">
@@ -176,7 +182,7 @@ export function ConversationList({ onNewConversation }: ConversationListProps) {
                     )}
                   </div>
 
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 text-left">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-foreground truncate">
                         {agentName}
@@ -201,7 +207,7 @@ export function ConversationList({ onNewConversation }: ConversationListProps) {
                     )}
                   </div>
                 </div>
-              </button>
+              </Button>
             )
           })
         )}

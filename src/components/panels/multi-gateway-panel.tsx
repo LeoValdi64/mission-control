@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
 import { useMissionControl } from '@/store'
 import { useWebSocket } from '@/lib/websocket'
 import { buildGatewayWebSocketUrl } from '@/lib/gateway-url'
@@ -182,18 +183,19 @@ export function MultiGatewayPanel() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <Button
             onClick={probeAll}
-            className="h-8 px-3 rounded-md text-xs font-medium bg-secondary text-foreground hover:bg-secondary/80 transition-smooth"
+            variant="secondary"
+            size="sm"
           >
             Probe All
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setShowAdd(!showAdd)}
-            className="h-8 px-3 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-smooth"
+            size="sm"
           >
             + Add Gateway
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -255,12 +257,14 @@ export function MultiGatewayPanel() {
               CLI tools connected directly without a gateway
             </p>
           </div>
-          <button
+          <Button
             onClick={fetchDirectConnections}
-            className="h-7 px-2.5 rounded-md text-2xs font-medium bg-secondary text-foreground hover:bg-secondary/80 transition-smooth"
+            variant="secondary"
+            size="xs"
+            className="text-2xs"
           >
             Refresh
-          </button>
+          </Button>
         </div>
         {directConnections.length === 0 ? (
           <div className="text-center py-8 bg-card border border-border rounded-lg">
@@ -296,12 +300,14 @@ export function MultiGatewayPanel() {
                     </div>
                   </div>
                   {conn.status === 'connected' && (
-                    <button
+                    <Button
                       onClick={() => disconnectCli(conn.connection_id)}
-                      className="h-7 px-2.5 rounded-md text-2xs font-medium text-red-400 hover:bg-red-500/10 transition-smooth"
+                      variant="ghost"
+                      size="xs"
+                      className="text-2xs text-red-400 hover:bg-red-500/10"
                     >
                       Disconnect
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -373,41 +379,48 @@ function GatewayCard({ gateway, health, isProbing, isCurrentlyConnected, onSetPr
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-          <button
+          <Button
             onClick={onProbe}
             disabled={isProbing}
-            className="h-7 px-2.5 rounded-md text-2xs font-medium bg-secondary text-foreground hover:bg-secondary/80 transition-smooth disabled:opacity-50"
+            variant="secondary"
+            size="xs"
+            className="text-2xs"
             title="Probe gateway"
           >
             {isProbing ? 'Probing...' : 'Probe'}
-          </button>
+          </Button>
           {!isCurrentlyConnected && (
-            <button
+            <Button
               onClick={onConnect}
-              className="h-7 px-2.5 rounded-md text-2xs font-medium bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-smooth"
+              size="xs"
+              className="text-2xs bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
               title="Connect to this gateway"
             >
               Connect
-            </button>
+            </Button>
           )}
           {!gateway.is_primary && (
             <>
-              <button
+              <Button
                 onClick={onSetPrimary}
-                className="h-7 px-2.5 rounded-md text-2xs font-medium bg-secondary text-foreground hover:bg-secondary/80 transition-smooth"
+                variant="secondary"
+                size="xs"
+                className="text-2xs"
                 title="Set as primary"
               >
                 Set Primary
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={onDelete}
-                className="w-7 h-7 rounded-md text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-smooth flex items-center justify-center"
+                variant="ghost"
+                size="icon-xs"
+                className="hover:text-red-400 hover:bg-red-500/10"
                 title="Remove gateway"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                   <path d="M3 4h10M6 4V3h4v1M5 4v8.5a.5.5 0 00.5.5h5a.5.5 0 00.5-.5V4" />
                 </svg>
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -502,12 +515,12 @@ function AddGatewayForm({ onAdded, onCancel }: { onAdded: () => void; onCancel: 
       {error && <p className="text-xs text-red-400">{error}</p>}
 
       <div className="flex gap-2 pt-1">
-        <button type="button" onClick={onCancel} className="h-8 px-4 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary border border-border transition-smooth">
+        <Button type="button" onClick={onCancel} variant="outline" size="sm">
           Cancel
-        </button>
-        <button type="submit" disabled={saving} className="h-8 px-4 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-smooth disabled:opacity-50">
+        </Button>
+        <Button type="submit" disabled={saving} size="sm">
           {saving ? 'Adding...' : 'Add Gateway'}
-        </button>
+        </Button>
       </div>
     </form>
   )

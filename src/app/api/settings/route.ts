@@ -34,6 +34,10 @@ const settingDefinitions: Record<string, { category: string; description: string
   'general.auto_cleanup': { category: 'general', description: 'Enable automatic data cleanup', default: 'false' },
   'general.auto_backup': { category: 'general', description: 'Enable automatic daily backups', default: 'false' },
   'general.backup_retention_count': { category: 'general', description: 'Number of backup files to keep', default: '10' },
+
+  // Subscription overrides
+  'subscription.plan_override': { category: 'general', description: 'Override auto-detected subscription plan (e.g. max, max_5x, pro)', default: '' },
+  'subscription.codex_plan': { category: 'general', description: 'Codex/OpenAI subscription plan (e.g. chatgpt, plus, pro)', default: '' },
 }
 
 /**

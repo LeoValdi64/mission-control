@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
 import { useSmartPoll } from '@/lib/use-smart-poll'
 import { createClientLogger } from '@/lib/client-logger'
 import { AgentAvatar } from '@/components/ui/agent-avatar'
@@ -291,35 +292,34 @@ export function AgentSquadPanelPhase3() {
         </div>
         
         <div className="flex gap-2">
-          <button
+          <Button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`px-3 py-1.5 text-sm rounded-md transition-smooth ${
-              autoRefresh
-                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                : 'bg-secondary text-muted-foreground'
-            }`}
+            variant={autoRefresh ? 'success' : 'secondary'}
+            size="sm"
           >
             {autoRefresh ? 'Live' : 'Manual'}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={syncFromConfig}
             disabled={syncing}
-            className="px-3 py-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-md hover:bg-cyan-500/30 disabled:opacity-50 transition-smooth text-sm"
+            size="sm"
+            className="bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/30"
           >
             {syncing ? 'Syncing...' : 'Sync from Config'}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-smooth text-sm font-medium"
+            size="sm"
           >
             + Add Agent
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={fetchAgents}
-            className="px-4 py-2 bg-secondary text-muted-foreground rounded-md hover:bg-surface-2 transition-smooth text-sm"
+            variant="secondary"
+            size="sm"
           >
             Refresh
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -334,12 +334,14 @@ export function AgentSquadPanelPhase3() {
       {error && (
         <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 m-4 rounded-lg text-sm flex items-center justify-between">
           <span>{error}</span>
-          <button
+          <Button
             onClick={() => setError(null)}
+            variant="ghost"
+            size="icon-sm"
             className="text-red-400/60 hover:text-red-400 ml-2"
           >
             ×
-          </button>
+          </Button>
         </div>
       )}
 
@@ -430,48 +432,53 @@ export function AgentSquadPanelPhase3() {
                 {/* Quick Actions */}
                 <div className="flex gap-1">
                   {agent.session_key ? (
-                    <button
+                    <Button
                       onClick={(e) => {
                         e.stopPropagation()
                         wakeAgent(agent.name, agent.session_key!)
                       }}
-                      className="flex-1 px-2 py-1 text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-md hover:bg-cyan-500/30 transition-smooth"
+                      size="xs"
+                      className="flex-1 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/30"
                       title="Wake agent via session"
                     >
                       Wake Agent
-                    </button>
+                    </Button>
                   ) : (
-                    <button
+                    <Button
                       onClick={(e) => {
                         e.stopPropagation()
                         updateAgentStatus(agent.name, 'idle', 'Manually activated')
                       }}
                       disabled={agent.status === 'idle'}
-                      className="flex-1 px-2 py-1 text-xs bg-green-500/20 text-green-400 border border-green-500/30 rounded-md hover:bg-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-smooth"
+                      variant="success"
+                      size="xs"
+                      className="flex-1"
                     >
                       Wake
-                    </button>
+                    </Button>
                   )}
-                  <button
+                  <Button
                     onClick={(e) => {
                       e.stopPropagation()
                       updateAgentStatus(agent.name, 'busy', 'Manually set to busy')
                     }}
                     disabled={agent.status === 'busy'}
-                    className="flex-1 px-2 py-1 text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded-md hover:bg-yellow-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-smooth"
+                    size="xs"
+                    className="flex-1 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/30"
                   >
                     Busy
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={(e) => {
                       e.stopPropagation()
                       setSelectedAgent(agent)
                       setShowQuickSpawnModal(true)
                     }}
-                    className="flex-1 px-2 py-1 text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-md hover:bg-blue-500/30 transition-smooth"
+                    size="xs"
+                    className="flex-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30"
                   >
                     Spawn
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}
@@ -766,7 +773,7 @@ function AgentDetailModalPhase3({
       onClick={onClose}
     >
       <div
-        className="bg-card border border-border/80 rounded-xl shadow-2xl shadow-black/40 max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden"
+        className="bg-card border border-border/80 rounded-lg shadow-2xl shadow-black/40 max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -795,30 +802,35 @@ function AgentDetailModalPhase3({
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
-                <button
+                <Button
                   onClick={() => handleDelete(false)}
                   disabled={deleteBusy}
-                  className="px-3 py-1.5 text-xs rounded-md border border-rose-500/40 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 disabled:opacity-50 transition-smooth"
+                  variant="destructive"
+                  size="xs"
                   title="Remove agent from Mission Control"
                 >
                   {deleteBusy ? 'Deleting...' : 'Delete Agent'}
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => handleDelete(true)}
                   disabled={deleteBusy}
-                  className="px-3 py-1.5 text-xs rounded-md border border-rose-600/50 bg-rose-600/20 text-rose-200 hover:bg-rose-600/30 disabled:opacity-50 transition-smooth"
+                  variant="destructive"
+                  size="xs"
+                  className="border-rose-600/50 bg-rose-600/20 text-rose-200 hover:bg-rose-600/30"
                   title="Remove agent and OpenClaw workspace"
                 >
                   {deleteBusy ? 'Deleting...' : 'Delete Agent + Workspace'}
-                </button>
+                </Button>
               </div>
-              <button
+              <Button
                 onClick={onClose}
                 aria-label="Close agent details"
-                className="h-9 w-9 inline-flex items-center justify-center rounded-md bg-secondary text-muted-foreground hover:bg-surface-2 hover:text-foreground transition-smooth"
+                variant="secondary"
+                size="icon"
+                className="hover:bg-surface-2 hover:text-foreground"
               >
                 ×
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -831,18 +843,20 @@ function AgentDetailModalPhase3({
           {/* Tab Navigation */}
           <div className="flex gap-1.5 mt-5 overflow-x-auto pb-1">
             {tabs.map(tab => (
-              <button
+              <Button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-3.5 py-2 text-sm rounded-md border flex items-center gap-2 transition-smooth whitespace-nowrap ${
+                variant={activeTab === tab.id ? 'default' : 'outline'}
+                size="sm"
+                className={`flex items-center gap-2 whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'bg-primary/90 text-primary-foreground border-primary/60 shadow-[0_0_0_1px_rgba(56,189,248,0.25)]'
-                    : 'bg-secondary/70 text-muted-foreground border-border/70 hover:bg-surface-2 hover:text-foreground'
+                    ? 'bg-primary/90 border-primary/60 shadow-[0_0_0_1px_rgba(56,189,248,0.25)]'
+                    : 'bg-secondary/70 border-border/70 hover:bg-surface-2'
                 }`}
               >
                 <span className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-black/20 text-[10px] font-semibold">{tab.icon}</span>
                 {tab.label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -978,7 +992,7 @@ function QuickSpawnModal({
           <h3 className="text-lg font-bold text-foreground">
             Quick Spawn for {agent.name}
           </h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-2xl transition-smooth">×</button>
+          <Button onClick={onClose} variant="ghost" size="icon-sm" className="text-2xl">×</Button>
         </div>
 
         {spawnResult ? (
@@ -1055,19 +1069,19 @@ function QuickSpawnModal({
 
             {/* Action Buttons */}
             <div className="flex gap-3 pt-4">
-              <button
+              <Button
                 onClick={handleSpawn}
                 disabled={isSpawning || !spawnData.task.trim()}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-smooth"
+                className="flex-1"
               >
                 {isSpawning ? 'Spawning...' : 'Spawn Agent'}
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={onClose}
-                className="px-4 py-2 bg-secondary text-muted-foreground rounded-md hover:bg-surface-2 transition-smooth"
+                variant="secondary"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         )}

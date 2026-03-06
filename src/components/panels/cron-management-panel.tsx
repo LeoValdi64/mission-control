@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Button } from '@/components/ui/button'
 import { useMissionControl, CronJob } from '@/store'
 import { createClientLogger } from '@/lib/client-logger'
 const log = createClientLogger('CronManagement')
@@ -480,19 +481,18 @@ export function CronManagementPanel() {
             </p>
           </div>
           <div className="flex space-x-2">
-            <button
+            <Button
               onClick={loadCronJobs}
               disabled={isLoading}
-              className="px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-md font-medium hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+              className="bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30"
             >
               {isLoading ? 'Loading...' : 'Refresh'}
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setShowAddForm(true)}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors"
             >
               Add Job
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -511,41 +511,41 @@ export function CronManagementPanel() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <button
+                <Button
                   onClick={() => moveCalendar(-1)}
-                  className="px-2 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  variant="outline"
+                  size="sm"
                 >
                   Prev
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => setCalendarDate(startOfDay(new Date()))}
-                  className="px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors text-sm"
+                  variant="outline"
+                  size="sm"
                 >
                   Today
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => moveCalendar(1)}
-                  className="px-2 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  variant="outline"
+                  size="sm"
                 >
                   Next
-                </button>
+                </Button>
                 <div className="text-sm font-medium text-foreground ml-1">{calendarRangeLabel}</div>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
               {(['agenda', 'day', 'week', 'month'] as CalendarViewMode[]).map((mode) => (
-                <button
+                <Button
                   key={mode}
                   onClick={() => setCalendarView(mode)}
-                  className={`px-3 py-1.5 rounded text-sm border transition-colors ${
-                    calendarView === mode
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'border-border text-muted-foreground hover:text-foreground hover:bg-secondary'
-                  }`}
+                  variant={calendarView === mode ? 'default' : 'outline'}
+                  size="sm"
                 >
                   {mode === 'agenda' ? 'Agenda' : mode.charAt(0).toUpperCase() + mode.slice(1)}
-                </button>
+                </Button>
               ))}
             </div>
 
@@ -586,10 +586,11 @@ export function CronManagementPanel() {
                     <div className="p-4 text-sm text-muted-foreground">No jobs match the current filters.</div>
                   ) : (
                     calendarOccurrences.map((row) => (
-                      <button
+                      <Button
                         key={`agenda-${row.job.id || row.job.name}-${row.atMs}`}
                         onClick={() => handleJobSelect(row.job)}
-                        className="w-full p-3 text-left flex flex-col md:flex-row md:items-center md:justify-between gap-2 hover:bg-secondary transition-colors"
+                        variant="ghost"
+                        className="w-full p-3 h-auto text-left flex flex-col md:flex-row md:items-center md:justify-between gap-2"
                       >
                         <div>
                           <div className="font-medium text-foreground">{row.job.name}</div>
@@ -600,9 +601,9 @@ export function CronManagementPanel() {
                         <div className="text-sm text-muted-foreground">
                           {new Date(row.atMs).toLocaleString()}
                         </div>
-                      </button>
+                      </Button>
                     ))
-                  )} 
+                  )}
                 </div>
               </div>
             )}
@@ -614,16 +615,17 @@ export function CronManagementPanel() {
                 ) : (
                   <div className="space-y-2">
                     {dayJobs.map((row) => (
-                      <button
+                      <Button
                         key={`day-${row.job.id || row.job.name}-${row.atMs}`}
                         onClick={() => handleJobSelect(row.job)}
-                        className="w-full p-2 rounded border border-border bg-secondary/40 hover:bg-secondary transition-colors text-left"
+                        variant="outline"
+                        className="w-full p-2 h-auto bg-secondary/40 hover:bg-secondary text-left flex flex-col items-start"
                       >
                         <div className="text-sm font-medium text-foreground">{row.job.name}</div>
                         <div className="text-xs text-muted-foreground">
                           {new Date(row.atMs).toLocaleTimeString()} · {row.job.agentId || 'system'} · {row.job.enabled ? 'enabled' : 'disabled'}
                         </div>
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 )}
@@ -633,10 +635,11 @@ export function CronManagementPanel() {
             {calendarView === 'week' && (
               <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
                 {jobsByWeekDay.map(({ date, jobs }) => (
-                  <button
+                  <Button
                     key={`week-${date.toISOString()}`}
                     onClick={() => setSelectedCalendarDate(startOfDay(date))}
-                    className={`border border-border rounded-lg p-2 min-h-36 text-left ${isSameDay(date, selectedCalendarDate) ? 'bg-primary/10 border-primary/40' : 'hover:bg-secondary/50'}`}
+                    variant="outline"
+                    className={`h-auto p-2 min-h-36 text-left flex flex-col items-start ${isSameDay(date, selectedCalendarDate) ? 'bg-primary/10 border-primary/40' : 'hover:bg-secondary/50'}`}
                   >
                     <div className={`text-xs font-medium mb-2 ${isSameDay(date, new Date()) ? 'text-primary' : 'text-muted-foreground'}`}>
                       {date.toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' })}
@@ -651,7 +654,7 @@ export function CronManagementPanel() {
                         <div className="text-xs text-muted-foreground">+{jobs.length - 4} more</div>
                       )}
                     </div>
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -696,16 +699,17 @@ export function CronManagementPanel() {
                 ) : (
                   <div className="space-y-2">
                     {selectedDayJobs.map((row) => (
-                      <button
+                      <Button
                         key={`selected-day-${row.job.id || row.job.name}-${row.atMs}`}
                         onClick={() => handleJobSelect(row.job)}
-                        className="w-full text-left p-2 rounded border border-border bg-secondary/40 hover:bg-secondary transition-colors"
+                        variant="outline"
+                        className="w-full text-left p-2 h-auto bg-secondary/40 hover:bg-secondary flex flex-col items-start"
                       >
                         <div className="text-sm font-medium text-foreground">{row.job.name}</div>
                         <div className="text-xs text-muted-foreground">
                           {new Date(row.atMs).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })} · {row.job.agentId || 'system'}
                         </div>
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 )}
@@ -793,39 +797,42 @@ export function CronManagementPanel() {
                       )}
                     </div>
                     <div className="flex space-x-1 ml-4">
-                      <button
+                      <Button
                         onClick={(e) => {
                           e.stopPropagation()
                           toggleJob(job)
                         }}
                         disabled={isLocalAutomation}
-                        className={`px-2 py-1 text-xs rounded ${
-                          job.enabled 
-                            ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30' 
-                            : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                        } transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                        size="xs"
+                        className={
+                          job.enabled
+                            ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border-yellow-500/30'
+                            : 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border-green-500/30'
+                        }
                       >
                         {job.enabled ? 'Disable' : 'Enable'}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={(e) => {
                           e.stopPropagation()
                           triggerJob(job)
                         }}
-                        className="px-2 py-1 text-xs bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
+                        size="xs"
+                        className="bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/30"
                       >
                         Run
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={(e) => {
                           e.stopPropagation()
                           removeJob(job)
                         }}
                         disabled={isLocalAutomation}
-                        className="px-2 py-1 text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors"
+                        variant="destructive"
+                        size="xs"
                       >
                         Remove
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -972,18 +979,17 @@ export function CronManagementPanel() {
             </div>
 
             <div className="flex justify-end space-x-3 mt-6">
-              <button
+              <Button
                 onClick={() => setShowAddForm(false)}
-                className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
+                variant="ghost"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={addJob}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors"
               >
                 Add Job
-              </button>
+              </Button>
             </div>
           </div>
         </div>

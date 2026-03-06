@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
 
 interface ConfigNode {
   [key: string]: any
@@ -183,9 +184,10 @@ function ConfigSection({ sectionKey, value, dotPath, expanded, onToggle, editing
     const childCount = Object.keys(value).length
     return (
       <div className="bg-card border border-border rounded-lg overflow-hidden">
-        <button
+        <Button
           onClick={onToggle}
-          className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary/50 transition-colors"
+          variant="ghost"
+          className="w-full h-auto flex items-center justify-between px-4 py-3"
         >
           <div className="flex items-center gap-2">
             <svg className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${expanded ? 'rotate-90' : ''}`} viewBox="0 0 16 16" fill="currentColor">
@@ -194,7 +196,7 @@ function ConfigSection({ sectionKey, value, dotPath, expanded, onToggle, editing
             <span className="text-sm font-medium text-foreground">{sectionKey}</span>
             <span className="text-2xs text-muted-foreground">({childCount} {childCount === 1 ? 'key' : 'keys'})</span>
           </div>
-        </button>
+        </Button>
         {expanded && (
           <div className="border-t border-border px-4 py-2 space-y-1">
             {Object.entries(value).map(([childKey, childValue]) => {
@@ -271,13 +273,13 @@ function NestedObject({ label, value, dotPath, editingKey, editValue, onStartEdi
 
   return (
     <div className="ml-3 border-l border-border/50 pl-3">
-      <button onClick={() => setOpen(!open)} className="flex items-center gap-1.5 py-1 text-sm hover:text-foreground transition-colors">
+      <Button onClick={() => setOpen(!open)} variant="ghost" size="sm" className="flex items-center gap-1.5 h-auto py-1">
         <svg className={`w-3 h-3 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`} viewBox="0 0 16 16" fill="currentColor">
           <path d="M6 3l5 5-5 5V3z" />
         </svg>
         <span className="font-medium text-foreground">{label}</span>
         <span className="text-2xs text-muted-foreground">({entries.length})</span>
-      </button>
+      </Button>
       {open && (
         <div className="space-y-1 mt-1">
           {entries.map(([k, v]) => {
@@ -366,8 +368,8 @@ function ConfigLeaf({ label, value, dotPath, editingKey, editValue, onStartEdit,
               autoFocus
             />
           )}
-          <button onClick={onSaveEdit} className="text-green-400 hover:text-green-300 text-xs">Save</button>
-          <button onClick={onCancelEdit} className="text-muted-foreground hover:text-foreground text-xs">Cancel</button>
+          <Button onClick={onSaveEdit} variant="ghost" size="xs" className="text-green-400 hover:text-green-300">Save</Button>
+          <Button onClick={onCancelEdit} variant="ghost" size="xs">Cancel</Button>
         </div>
       ) : (
         <>
@@ -375,12 +377,14 @@ function ConfigLeaf({ label, value, dotPath, editingKey, editValue, onStartEdit,
             {displayValue.length > 80 ? displayValue.slice(0, 80) + '...' : displayValue}
           </span>
           {!isRedacted && (
-            <button
+            <Button
               onClick={() => onStartEdit(dotPath, value)}
-              className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground transition-opacity"
+              variant="ghost"
+              size="xs"
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
             >
               Edit
-            </button>
+            </Button>
           )}
         </>
       )}

@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { useMissionControl } from '@/store'
+import { Button } from '@/components/ui/button'
 
 interface ChatInputProps {
   onSend: (content: string) => void
@@ -123,10 +124,12 @@ export function ChatInput({ onSend, disabled, agents = [] }: ChatInputProps) {
       {showMentions && filteredAgents.length > 0 && (
         <div className="absolute bottom-full left-3 right-3 mb-1 bg-popover/95 backdrop-blur-lg border border-border rounded-lg shadow-xl overflow-hidden max-h-40 overflow-y-auto z-10">
           {filteredAgents.map((agent, i) => (
-            <button
+            <Button
               key={agent.name}
-              className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors ${
-                i === mentionIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'
+              variant="ghost"
+              size="sm"
+              className={`w-full justify-start px-3 py-2 h-auto text-sm gap-2 rounded-none ${
+                i === mentionIndex ? 'bg-accent text-accent-foreground' : ''
               }`}
               onMouseDown={(e) => {
                 e.preventDefault()
@@ -138,7 +141,7 @@ export function ChatInput({ onSend, disabled, agents = [] }: ChatInputProps) {
               </div>
               <span className="font-medium text-foreground">@{agent.name}</span>
               <span className="text-muted-foreground text-xs ml-auto">{agent.role}</span>
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -154,10 +157,11 @@ export function ChatInput({ onSend, disabled, agents = [] }: ChatInputProps) {
           rows={1}
           className="flex-1 resize-none bg-surface-1 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/50 disabled:opacity-40 transition-all"
         />
-        <button
+        <Button
           onClick={handleSend}
           disabled={!chatInput.trim() || disabled || isSendingMessage}
-          className="w-8 h-8 flex items-center justify-center bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-smooth flex-shrink-0"
+          size="icon-sm"
+          className="rounded-lg flex-shrink-0"
           title="Send message"
         >
           {isSendingMessage ? (
@@ -168,7 +172,7 @@ export function ChatInput({ onSend, disabled, agents = [] }: ChatInputProps) {
               <path d="M14 2l-5 12-2-5-5-2 12-5z" />
             </svg>
           )}
-        </button>
+        </Button>
       </div>
     </div>
   )

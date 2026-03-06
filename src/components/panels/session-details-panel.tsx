@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
 import { useMissionControl } from '@/store'
 import { useSmartPoll } from '@/lib/use-smart-poll'
 import { createClientLogger } from '@/lib/client-logger'
@@ -327,8 +328,9 @@ export function SessionDetailsPanel() {
 
                         {/* Actions */}
                         <div className="flex space-x-2">
-                          <button
-                            className="px-3 py-1 text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+                          <Button
+                            size="xs"
+                            className="bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30"
                             disabled={controllingSession !== null}
                             onClick={async (e) => {
                               e.stopPropagation()
@@ -351,9 +353,10 @@ export function SessionDetailsPanel() {
                             }}
                           >
                             {controllingSession === `monitor-${session.id}` ? 'Working...' : 'Monitor'}
-                          </button>
-                          <button
-                            className="px-3 py-1 text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded hover:bg-yellow-500/30 transition-colors disabled:opacity-50"
+                          </Button>
+                          <Button
+                            size="xs"
+                            className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/30"
                             disabled={controllingSession !== null}
                             onClick={async (e) => {
                               e.stopPropagation()
@@ -376,9 +379,10 @@ export function SessionDetailsPanel() {
                             }}
                           >
                             {controllingSession === `pause-${session.id}` ? 'Working...' : 'Pause'}
-                          </button>
-                          <button
-                            className="px-3 py-1 text-xs bg-red-500/20 text-red-400 border border-red-500/30 rounded hover:bg-red-500/30 transition-colors disabled:opacity-50"
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="xs"
                             disabled={controllingSession !== null}
                             onClick={async (e) => {
                               e.stopPropagation()
@@ -402,7 +406,7 @@ export function SessionDetailsPanel() {
                             }}
                           >
                             {controllingSession === `terminate-${session.id}` ? 'Working...' : 'Terminate'}
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     )}

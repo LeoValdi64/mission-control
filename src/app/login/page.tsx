@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
-
+import { Button } from '@/components/ui/button'
 declare global {
   interface Window {
     google?: any
@@ -102,8 +101,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-xl overflow-hidden bg-primary/10 border border-border/70 flex items-center justify-center mb-3">
-            <Image src="/brand/mc-logo-128.png" alt="Mission Control logo" width={48} height={48} className="w-full h-full object-cover" priority />
+          <div className="w-12 h-12 rounded-lg overflow-hidden bg-background border border-border/50 flex items-center justify-center mb-3">
+            <img src="/brand/mc-logo-128.png" alt="Mission Control logo" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-xl font-semibold text-foreground">Mission Control</h1>
           <p className="text-sm text-muted-foreground mt-1">Sign in to continue</p>
@@ -147,10 +146,11 @@ export default function LoginPage() {
             />
           </div>
 
-          <button
+          <Button
             type="submit"
             disabled={loading || !username || !password}
-            className="w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-smooth flex items-center justify-center gap-2"
+            size="lg"
+            className="w-full rounded-lg"
           >
             {loading ? (
               <>
@@ -160,7 +160,7 @@ export default function LoginPage() {
             ) : (
               'Sign in'
             )}
-          </button>
+          </Button>
         </form>
 
         <div className="my-4 flex items-center gap-2">

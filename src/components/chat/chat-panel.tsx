@@ -7,6 +7,7 @@ import { createClientLogger } from '@/lib/client-logger'
 import { ConversationList } from './conversation-list'
 import { MessageList } from './message-list'
 import { ChatInput } from './chat-input'
+import { Button } from '@/components/ui/button'
 
 const log = createClientLogger('ChatPanel')
 
@@ -184,14 +185,15 @@ export function ChatPanel() {
           <div className="flex items-center gap-3">
             {/* Back button on mobile when in chat view */}
             {isMobile && !showConversations && (
-              <button
+              <Button
                 onClick={handleBackToList}
-                className="text-muted-foreground hover:text-foreground transition-smooth"
+                variant="ghost"
+                size="icon-xs"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M10 12L6 8l4-4" />
                 </svg>
-              </button>
+              </Button>
             )}
             <div className="flex items-center gap-2">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
@@ -207,24 +209,27 @@ export function ChatPanel() {
 
           <div className="flex items-center gap-1">
             {/* Toggle conversations sidebar (desktop) */}
-            <button
+            <Button
               onClick={() => setShowConversations(!showConversations)}
-              className="hidden md:flex w-7 h-7 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-smooth"
+              variant="ghost"
+              size="icon-xs"
+              className="hidden md:flex"
               title={showConversations ? 'Hide conversations' : 'Show conversations'}
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <path d="M2 4h12M2 8h12M2 12h12" />
               </svg>
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setChatPanelOpen(false)}
-              className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-smooth"
+              variant="ghost"
+              size="icon-xs"
               title="Close chat (Esc)"
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <path d="M4 4l8 8M12 4l-8 8" />
               </svg>
-            </button>
+            </Button>
           </div>
         </div>
 

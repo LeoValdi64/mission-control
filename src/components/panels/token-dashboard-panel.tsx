@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
 import { useMissionControl } from '@/store'
 import { createClientLogger } from '@/lib/client-logger'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
@@ -248,17 +249,13 @@ export function TokenDashboardPanel() {
           </div>
           <div className="flex space-x-2">
             {(['hour', 'day', 'week', 'month'] as const).map((timeframe) => (
-              <button
+              <Button
                 key={timeframe}
                 onClick={() => setSelectedTimeframe(timeframe)}
-                className={`px-4 py-2 text-sm rounded-md font-medium transition-colors ${
-                  selectedTimeframe === timeframe
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-                }`}
+                variant={selectedTimeframe === timeframe ? 'default' : 'secondary'}
               >
                 {timeframe.charAt(0).toUpperCase() + timeframe.slice(1)}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -408,20 +405,20 @@ export function TokenDashboardPanel() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Export Data</h2>
               <div className="flex space-x-2">
-                <button
+                <Button
                   onClick={() => exportData('csv')}
                   disabled={isExporting}
-                  className="px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-md hover:bg-blue-500/30 disabled:opacity-50 transition-smooth"
+                  className="bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30"
                 >
                   {isExporting ? 'Exporting...' : 'Export CSV'}
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => exportData('json')}
                   disabled={isExporting}
-                  className="px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/30 rounded-md hover:bg-green-500/30 disabled:opacity-50 transition-smooth"
+                  variant="success"
                 >
                   {isExporting ? 'Exporting...' : 'Export JSON'}
-                </button>
+                </Button>
               </div>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -630,12 +627,12 @@ export function TokenDashboardPanel() {
         <div className="text-center text-muted-foreground py-12">
           <div className="text-lg mb-2">No usage data available</div>
           <div className="text-sm">Token usage will appear here once agents start running</div>
-          <button 
+          <Button
             onClick={loadUsageStats}
-            className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            className="mt-4"
           >
             Refresh
-          </button>
+          </Button>
         </div>
       )}
     </div>

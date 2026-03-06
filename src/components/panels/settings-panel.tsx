@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
 import { useMissionControl } from '@/store'
 import { useNavigateToPanel } from '@/lib/navigation'
 
@@ -22,6 +23,25 @@ const categoryLabels: Record<string, { label: string; icon: string; description:
 }
 
 const categoryOrder = ['general', 'retention', 'gateway', 'custom']
+
+// Dropdown options for subscription plan settings
+const subscriptionDropdowns: Record<string, { label: string; value: string }[]> = {
+  'subscription.plan_override': [
+    { label: 'Auto-detect', value: '' },
+    { label: 'Pro ($20/mo)', value: 'pro' },
+    { label: 'Max ($100/mo)', value: 'max' },
+    { label: 'Max 5x ($200/mo)', value: 'max_5x' },
+    { label: 'Team ($30/mo)', value: 'team' },
+    { label: 'Enterprise', value: 'enterprise' },
+  ],
+  'subscription.codex_plan': [
+    { label: 'None', value: '' },
+    { label: 'ChatGPT Free ($0/mo)', value: 'chatgpt' },
+    { label: 'Plus ($20/mo)', value: 'plus' },
+    { label: 'Pro ($200/mo)', value: 'pro' },
+    { label: 'Team ($30/mo)', value: 'team' },
+  ],
+}
 
 export function SettingsPanel() {
   const { currentUser } = useMissionControl()
@@ -166,24 +186,23 @@ export function SettingsPanel() {
         </div>
         <div className="flex items-center gap-2">
           {hasChanges && (
-            <button
+            <Button
               onClick={handleDiscard}
-              className="px-3 py-1.5 text-xs rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors"
+              variant="outline"
+              size="sm"
             >
               Discard
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             onClick={handleSave}
             disabled={!hasChanges || saving}
-            className={`px-4 py-1.5 text-xs rounded-md font-medium transition-colors ${
-              hasChanges
-                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                : 'bg-muted text-muted-foreground cursor-not-allowed'
-            }`}
+            variant={hasChanges ? 'default' : 'secondary'}
+            size="sm"
+            className={!hasChanges ? 'cursor-not-allowed' : ''}
           >
             {saving ? 'Saving...' : 'Save Changes'}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -192,12 +211,14 @@ export function SettingsPanel() {
         <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-xs text-blue-300">
           <strong className="text-blue-200">Workspace Management:</strong>{' '}
           To create or manage workspaces (tenant instances), go to the{' '}
-          <button
+          <Button
             onClick={() => navigateToPanel('super-admin')}
-            className="text-blue-400 underline hover:text-blue-300 cursor-pointer"
+            variant="link"
+            size="xs"
+            className="text-blue-400 hover:text-blue-300 p-0 h-auto"
           >
             Super Admin
-          </button>{' '}
+          </Button>{' '}
           panel under Admin &gt; Super Admin in the sidebar. From there you can create new client instances, manage tenants, and monitor provisioning jobs.
         </div>
       )}
@@ -217,13 +238,15 @@ export function SettingsPanel() {
           const meta = categoryLabels[cat] || { label: cat, icon: '📋', description: '' }
           const changedCount = (grouped[cat] || []).filter(s => edits[s.key] !== undefined && edits[s.key] !== s.value).length
           return (
-            <button
+            <Button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`px-3 py-2 text-xs font-medium rounded-t-md transition-colors relative ${
+              variant="ghost"
+              size="sm"
+              className={`rounded-t-md rounded-b-none relative ${
                 activeCategory === cat
                   ? 'bg-card text-foreground border border-border border-b-card -mb-px'
-                  : 'text-muted-foreground hover:text-foreground'
+                  : ''
               }`}
             >
               {meta.label}
@@ -232,7 +255,7 @@ export function SettingsPanel() {
                   {changedCount}
                 </span>
               )}
-            </button>
+            </Button>
           )
         })}
       </div>
@@ -244,6 +267,7 @@ export function SettingsPanel() {
           const isChanged = edits[setting.key] !== undefined && edits[setting.key] !== setting.value
           const isBooleanish = setting.value === 'true' || setting.value === 'false'
           const isNumeric = /^\d+$/.test(setting.value)
+          const dropdownOptions = subscriptionDropdowns[setting.key]
           const shortKey = setting.key.split('.').pop() || setting.key
 
           return (
@@ -269,10 +293,20 @@ export function SettingsPanel() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  {isBooleanish ? (
+                  {dropdownOptions ? (
+                    <select
+                      value={currentValue}
+                      onChange={e => handleEdit(setting.key, e.target.value)}
+                      className="w-48 px-2 py-1 text-sm bg-background border border-border rounded-md focus:border-primary focus:outline-none"
+                    >
+                      {dropdownOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  ) : isBooleanish ? (
                     <button
                       onClick={() => handleEdit(setting.key, currentValue === 'true' ? 'false' : 'true')}
-                      className={`w-10 h-5 rounded-full relative transition-colors ${
+                      className={`w-10 h-5 rounded-full relative transition-colors select-none ${
                         currentValue === 'true' ? 'bg-primary' : 'bg-muted'
                       }`}
                     >
@@ -297,16 +331,18 @@ export function SettingsPanel() {
                   )}
 
                   {!setting.is_default && (
-                    <button
+                    <Button
                       onClick={() => handleReset(setting.key)}
                       title="Reset to default"
-                      className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                      variant="ghost"
+                      size="icon-xs"
+                      className="w-6 h-6"
                     >
                       <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <path d="M2 8a6 6 0 1111.3-2.8" strokeLinecap="round" />
                         <path d="M14 2v3.5h-3.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -331,19 +367,20 @@ export function SettingsPanel() {
               return s && edits[k] !== s.value
             }).length} unsaved change(s)
           </span>
-          <button
+          <Button
             onClick={handleDiscard}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            variant="ghost"
+            size="xs"
           >
             Discard
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleSave}
             disabled={saving}
-            className="px-3 py-1 text-xs rounded-md bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
+            size="xs"
           >
             {saving ? 'Saving...' : 'Save'}
-          </button>
+          </Button>
         </div>
       )}
     </div>

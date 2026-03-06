@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
 import { useSmartPoll } from '@/lib/use-smart-poll'
 
 interface AuditEvent {
@@ -138,12 +139,13 @@ export function AuditTrailPanel() {
           <h2 className="text-base font-semibold text-foreground">Audit Trail</h2>
           <p className="text-xs text-muted-foreground mt-0.5">{total} event{total !== 1 ? 's' : ''} logged</p>
         </div>
-        <button
+        <Button
           onClick={() => { setPage(0); fetchEvents() }}
-          className="h-7 px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-smooth"
+          variant="ghost"
+          size="xs"
         >
           Refresh
-        </button>
+        </Button>
       </div>
 
       {/* Filters */}
@@ -237,23 +239,25 @@ export function AuditTrailPanel() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
-          <button
+          <Button
             onClick={() => setPage(p => Math.max(0, p - 1))}
             disabled={page === 0}
-            className="h-7 px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-smooth disabled:opacity-30"
+            variant="ghost"
+            size="xs"
           >
             Previous
-          </button>
+          </Button>
           <span className="text-xs text-muted-foreground">
             Page {page + 1} of {totalPages}
           </span>
-          <button
+          <Button
             onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
             disabled={page >= totalPages - 1}
-            className="h-7 px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-smooth disabled:opacity-30"
+            variant="ghost"
+            size="xs"
           >
             Next
-          </button>
+          </Button>
         </div>
       )}
     </div>

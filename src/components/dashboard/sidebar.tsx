@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
 import { useMissionControl } from '@/store'
 import { useNavigateToPanel } from '@/lib/navigation'
 import { createClientLogger } from '@/lib/client-logger'
+import { Button } from '@/components/ui/button'
 
 const log = createClientLogger('Sidebar')
 
@@ -51,8 +51,8 @@ export function Sidebar() {
       {/* Logo/Brand */}
       <div className="p-6 border-b border-border">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-lg overflow-hidden bg-primary/10 border border-border/70 flex items-center justify-center">
-            <Image src="/brand/mc-logo-128.png" alt="Mission Control logo" width={32} height={32} className="w-full h-full object-cover" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden bg-background border border-border/50 flex items-center justify-center">
+            <img src="/brand/mc-logo-128.png" alt="Mission Control logo" className="w-full h-full object-cover" />
           </div>
           <div>
             <h2 className="font-bold text-foreground">Mission Control</h2>
@@ -66,12 +66,13 @@ export function Sidebar() {
         <ul className="space-y-2">
           {menuItems.map((item) => (
             <li key={item.id}>
-              <button
+              <Button
+                variant={activeTab === item.id ? 'default' : 'ghost'}
                 onClick={() => navigateToPanel(item.id)}
-                className={`w-full flex items-start space-x-3 px-3 py-3 rounded-lg text-left transition-colors group ${
+                className={`w-full flex items-start space-x-3 px-3 py-3 h-auto rounded-lg text-left justify-start group ${
                   activeTab === item.id
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                    ? 'shadow-sm'
+                    : ''
                 }`}
                 title={item.description}
               >
@@ -79,14 +80,14 @@ export function Sidebar() {
                 <div className="flex-1 min-w-0">
                   <div className="font-medium">{item.label}</div>
                   <div className={`text-xs mt-0.5 ${
-                    activeTab === item.id 
-                      ? 'text-primary-foreground/80' 
+                    activeTab === item.id
+                      ? 'text-primary-foreground/80'
                       : 'text-muted-foreground group-hover:text-foreground/70'
                   }`}>
                     {item.description}
                   </div>
                 </div>
-              </button>
+              </Button>
             </li>
           ))}
         </ul>

@@ -181,7 +181,7 @@ export const connectSchema = z.object({
 })
 
 export const githubSyncSchema = z.object({
-  action: z.enum(['sync', 'comment', 'close', 'status']),
+  action: z.enum(['sync', 'comment', 'close', 'status', 'init-labels', 'sync-project']),
   repo: z.string().regex(/^[^/]+\/[^/]+$/, 'Repo must be owner/repo format').optional(),
   labels: z.string().optional(),
   state: z.enum(['open', 'closed', 'all']).optional(),
@@ -189,4 +189,5 @@ export const githubSyncSchema = z.object({
   issueNumber: z.number().optional(),
   body: z.string().optional(),
   comment: z.string().optional(),
+  project_id: z.number().optional(),
 })

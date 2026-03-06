@@ -1,6 +1,7 @@
 'use client'
 
 import { useMissionControl } from '@/store'
+import { Button } from '@/components/ui/button'
 
 export function UpdateBanner() {
   const { updateAvailable, updateDismissedVersion, dismissUpdate } = useMissionControl()
@@ -25,15 +26,17 @@ export function UpdateBanner() {
       >
         View Release
       </a>
-      <button
+      <Button
+        variant="ghost"
+        size="icon-xs"
         onClick={() => dismissUpdate(updateAvailable.latestVersion)}
-        className="shrink-0 text-emerald-400/60 hover:text-emerald-300 transition-colors"
+        className="shrink-0 text-emerald-400/60 hover:text-emerald-300 hover:bg-transparent"
         title="Dismiss"
       >
         <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
           <path d="M4 4l8 8M12 4l-8 8" />
         </svg>
-      </button>
+      </Button>
     </div>
   )
 }

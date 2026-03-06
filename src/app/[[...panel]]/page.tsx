@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { NavRail } from '@/components/layout/nav-rail'
 import { HeaderBar } from '@/components/layout/header-bar'
 import { LiveFeed } from '@/components/layout/live-feed'
@@ -30,12 +29,14 @@ import { GatewayConfigPanel } from '@/components/panels/gateway-config-panel'
 import { IntegrationsPanel } from '@/components/panels/integrations-panel'
 import { AlertRulesPanel } from '@/components/panels/alert-rules-panel'
 import { MultiGatewayPanel } from '@/components/panels/multi-gateway-panel'
+import { SuperAdminPanel } from '@/components/panels/super-admin-panel'
 import { OfficePanel } from '@/components/panels/office-panel'
 import { GitHubSyncPanel } from '@/components/panels/github-sync-panel'
 import { ChatPanel } from '@/components/chat/chat-panel'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { LocalModeBanner } from '@/components/layout/local-mode-banner'
 import { UpdateBanner } from '@/components/layout/update-banner'
+import { ProjectManagerModal } from '@/components/modals/project-manager-modal'
 import { useWebSocket } from '@/lib/websocket'
 import { useServerEvents } from '@/lib/use-server-events'
 import { useMissionControl } from '@/store'
@@ -52,7 +53,7 @@ function isLocalHost(hostname: string): boolean {
 export default function Home() {
   const router = useRouter()
   const { connect } = useWebSocket()
-  const { activeTab, setActiveTab, setCurrentUser, setDashboardMode, setGatewayAvailable, setSubscription, setUpdateAvailable, liveFeedOpen, toggleLiveFeed } = useMissionControl()
+  const { activeTab, setActiveTab, setCurrentUser, setDashboardMode, setGatewayAvailable, setCapabilitiesChecked, setSubscription, setDefaultOrgName, setUpdateAvailable, liveFeedOpen, toggleLiveFeed, showProjectManagerModal, setShowProjectManagerModal, fetchProjects } = useMissionControl()
 
   // Sync URL → Zustand activeTab
   const pathname = usePathname()
@@ -152,9 +153,13 @@ export default function Home() {
         if (data?.subscription) {
           setSubscription(data.subscription)
         }
+        if (data?.processUser) {
+          setDefaultOrgName(data.processUser)
+        }
         if (data && data.gateway === false) {
           setDashboardMode('local')
           setGatewayAvailable(false)
+          setCapabilitiesChecked(true)
           // Skip WebSocket connect — no gateway to talk to
           return
         }
@@ -162,6 +167,7 @@ export default function Home() {
           setDashboardMode('full')
           setGatewayAvailable(true)
         }
+        setCapabilitiesChecked(true)
 
         const primaryConnect = await connectWithPrimaryGateway()
         if (!primaryConnect.connected && !primaryConnect.attempted) {
@@ -170,20 +176,31 @@ export default function Home() {
       })
       .catch(() => {
         // If capabilities check fails, still try to connect
+        setCapabilitiesChecked(true)
         connectWithEnvFallback()
       })
-  }, [connect, pathname, router, setCurrentUser, setDashboardMode, setGatewayAvailable, setSubscription, setUpdateAvailable])
+  }, [connect, pathname, router, setCurrentUser, setDashboardMode, setGatewayAvailable, setCapabilitiesChecked, setSubscription, setUpdateAvailable])
 
   if (!isClient) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl overflow-hidden bg-primary/10 border border-border/70 flex items-center justify-center">
-            <Image src="/brand/mc-logo-128.png" alt="Mission Control logo" width={40} height={40} className="w-full h-full object-cover" priority />
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-6">
+          {/* Logo with glow pulse */}
+          <div className="relative">
+            <div className="absolute -inset-3 rounded-2xl bg-primary/10 blur-xl animate-glow-pulse" />
+            <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-surface-1 border border-border/50 flex items-center justify-center shadow-lg shadow-primary/5">
+              <img src="/brand/mc-logo-128.png" alt="Mission Control logo" className="w-full h-full object-cover" />
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            <span className="text-sm text-muted-foreground">Loading Mission Control...</span>
+
+          {/* Animated loading dots */}
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" style={{ animationDelay: '0ms' }} />
+              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" style={{ animationDelay: '300ms' }} />
+              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" style={{ animationDelay: '600ms' }} />
+            </div>
+            <span className="text-sm text-muted-foreground font-medium tracking-wide">Loading Mission Control</span>
           </div>
         </div>
       </div>
@@ -211,7 +228,7 @@ export default function Home() {
           </div>
           <footer className="px-4 pb-4 pt-2">
             <p className="text-2xs text-muted-foreground/50 text-center">
-              Built with care by nyk.
+              Built with care by <a href="https://x.com/nyk_builderz" target="_blank" rel="noopener noreferrer" className="text-muted-foreground/70 hover:text-primary transition-colors duration-200">nyk</a>.
             </p>
           </footer>
         </main>
@@ -239,6 +256,14 @@ export default function Home() {
 
       {/* Chat panel overlay */}
       <ChatPanel />
+
+      {/* Global Project Manager Modal */}
+      {showProjectManagerModal && (
+        <ProjectManagerModal
+          onClose={() => setShowProjectManagerModal(false)}
+          onChanged={async () => { await fetchProjects() }}
+        />
+      )}
     </div>
   )
 }
@@ -253,7 +278,7 @@ function ContentRouter({ tab }: { tab: string }) {
         <>
           <Dashboard />
           {!isLocal && (
-            <div className="mt-4 mx-4 mb-4 rounded-xl border border-border bg-card overflow-hidden">
+            <div className="mt-4 mx-4 mb-4 rounded-lg border border-border bg-card overflow-hidden">
               <AgentCommsPanel />
             </div>
           )}
@@ -267,7 +292,7 @@ function ContentRouter({ tab }: { tab: string }) {
           <OrchestrationBar />
           <AgentSquadPanelPhase3 />
           {!isLocal && (
-            <div className="mt-4 mx-4 mb-4 rounded-xl border border-border bg-card overflow-hidden">
+            <div className="mt-4 mx-4 mb-4 rounded-lg border border-border bg-card overflow-hidden">
               <AgentCommsPanel />
             </div>
           )}
@@ -280,6 +305,7 @@ function ContentRouter({ tab }: { tab: string }) {
     case 'standup':
       return <StandupPanel />
     case 'spawn':
+      if (isLocal) return <LocalModeUnavailable panel={tab} />
       return <AgentSpawnPanel />
     case 'sessions':
       return <SessionDetailsPanel />
@@ -304,13 +330,17 @@ function ContentRouter({ tab }: { tab: string }) {
     case 'alerts':
       return <AlertRulesPanel />
     case 'gateways':
+      if (isLocal) return <LocalModeUnavailable panel={tab} />
       return <MultiGatewayPanel />
     case 'gateway-config':
+      if (isLocal) return <LocalModeUnavailable panel={tab} />
       return <GatewayConfigPanel />
     case 'integrations':
       return <IntegrationsPanel />
     case 'settings':
       return <SettingsPanel />
+    case 'super-admin':
+      return <SuperAdminPanel />
     case 'github':
       return <GitHubSyncPanel />
     case 'office':
@@ -318,4 +348,17 @@ function ContentRouter({ tab }: { tab: string }) {
     default:
       return <Dashboard />
   }
+}
+
+function LocalModeUnavailable({ panel }: { panel: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <p className="text-sm text-muted-foreground">
+        <span className="font-medium text-foreground">{panel}</span> requires an OpenClaw gateway connection.
+      </p>
+      <p className="text-xs text-muted-foreground mt-1">
+        Configure a gateway to enable this panel.
+      </p>
+    </div>
+  )
 }

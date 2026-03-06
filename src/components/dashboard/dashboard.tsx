@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { useMissionControl } from '@/store'
 import { useNavigateToPanel } from '@/lib/navigation'
 import { useSmartPoll } from '@/lib/use-smart-poll'
+import { Button } from '@/components/ui/button'
 
 interface DbStats {
   tasks: { total: number; byStatus: Record<string, number> }
@@ -41,6 +42,15 @@ export function Dashboard() {
   const isLocal = dashboardMode === 'local'
   const subscriptionLabel = subscription?.type
     ? subscription.type.charAt(0).toUpperCase() + subscription.type.slice(1)
+    : null
+
+  // Monthly subscription prices by provider + plan type
+  const SUBSCRIPTION_PRICES: Record<string, Record<string, number>> = {
+    anthropic: { pro: 20, max: 100, max_5x: 200, team: 30, enterprise: 30 },
+    openai: { plus: 20, chatgpt: 20, pro: 200, team: 30, enterprise: 0 },
+  }
+  const subscriptionPrice = subscription?.provider && subscription?.type
+    ? SUBSCRIPTION_PRICES[subscription.provider]?.[subscription.type] ?? null
     : null
 
   const [systemStats, setSystemStats] = useState<any>(null)
@@ -154,7 +164,9 @@ export function Dashboard() {
             <div className="cursor-pointer" onClick={() => navigateToPanel('tokens')}>
               <MetricCard
                 label="Est. Cost"
-                value={subscriptionLabel ? `Included` : `$${(claudeStats?.total_estimated_cost ?? 0).toFixed(2)}`}
+                value={subscriptionLabel
+                  ? (subscriptionPrice ? `$${subscriptionPrice}/mo` : 'Included')
+                  : `$${(claudeStats?.total_estimated_cost ?? 0).toFixed(2)}`}
                 subtitle={subscriptionLabel ? `${subscriptionLabel} plan` : undefined}
                 icon={<CostIcon />}
                 color={subscriptionLabel ? 'green' : (claudeStats && claudeStats.total_estimated_cost > 10 ? 'red' : 'green')}
@@ -292,7 +304,7 @@ export function Dashboard() {
                   <span className="text-xs text-muted-foreground">Estimated cost</span>
                   {subscriptionLabel ? (
                     <span className="text-xs font-medium font-mono-tight text-green-400">
-                      Included ({subscriptionLabel})
+                      {subscriptionPrice ? `$${subscriptionPrice}/mo` : 'Included'} ({subscriptionLabel})
                     </span>
                   ) : (
                     <span className={`text-xs font-medium font-mono-tight ${
@@ -622,9 +634,10 @@ function QuickAction({ label, desc, tab, icon, onNavigate }: {
   onNavigate: (tab: string) => void
 }) {
   return (
-    <button
+    <Button
+      variant="outline"
       onClick={() => onNavigate(tab)}
-      className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-primary/5 transition-smooth text-left group"
+      className="flex items-center gap-3 p-3 h-auto rounded-lg hover:border-primary/30 hover:bg-primary/5 text-left group justify-start"
     >
       <div className="w-8 h-8 rounded-md bg-secondary flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-smooth">
         <div className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-smooth">{icon}</div>
@@ -633,7 +646,7 @@ function QuickAction({ label, desc, tab, icon, onNavigate }: {
         <div className="text-xs font-medium text-foreground">{label}</div>
         <div className="text-2xs text-muted-foreground">{desc}</div>
       </div>
-    </button>
+    </Button>
   )
 }
 
