@@ -305,11 +305,6 @@ function ContentRouter({ tab }: { tab: string }) {
           <OrchestrationBar />
           {isLocal && <LocalAgentsDocPanel />}
           <AgentSquadPanelPhase3 />
-          {!isLocal && (
-            <div className="mt-4 mx-4 mb-4 rounded-lg border border-border bg-card overflow-hidden">
-              <AgentCommsPanel />
-            </div>
-          )}
         </>
       )
     case 'activity':
