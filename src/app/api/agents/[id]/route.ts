@@ -234,7 +234,7 @@ export async function DELETE(
           .replace(/[^a-z0-9._-]+/g, '-')
           .replace(/^-+|-+$/g, '') || agent.name
       try {
-        await runOpenClaw(['agents', 'remove', openclawId, '--non-interactive'], { timeoutMs: 30000 })
+        await runOpenClaw(['agents', 'delete', openclawId, '--force'], { timeoutMs: 30000 })
       } catch (err: any) {
         logger.error({ err, openclawId, agent: agent.name }, 'Failed to remove OpenClaw agent/workspace')
         return NextResponse.json(
