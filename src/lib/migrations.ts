@@ -1091,6 +1091,133 @@ const migrations: Migration[] = [
         WHERE json_extract(metadata, '$.recurrence.enabled') = 1
       `)
     }
+  },
+  {
+    id: '037_security_audit',
+    up(db: Database.Database) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS security_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          event_type TEXT NOT NULL,
+          severity TEXT NOT NULL DEFAULT 'info',
+          source TEXT,
+          agent_name TEXT,
+          detail TEXT,
+          ip_address TEXT,
+          workspace_id INTEGER NOT NULL DEFAULT 1,
+          tenant_id INTEGER NOT NULL DEFAULT 1,
+          created_at INTEGER NOT NULL DEFAULT (unixepoch())
+        )
+      `)
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_security_events_event_type ON security_events(event_type)`)
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_security_events_severity ON security_events(severity)`)
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_security_events_created_at ON security_events(created_at)`)
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_security_events_agent_name ON security_events(agent_name)`)
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_security_events_workspace_id ON security_events(workspace_id)`)
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS agent_trust_scores (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          agent_name TEXT NOT NULL,
+          trust_score REAL NOT NULL DEFAULT 1.0,
+          auth_failures INTEGER NOT NULL DEFAULT 0,
+          injection_attempts INTEGER NOT NULL DEFAULT 0,
+          rate_limit_hits INTEGER NOT NULL DEFAULT 0,
+          secret_exposures INTEGER NOT NULL DEFAULT 0,
+          successful_tasks INTEGER NOT NULL DEFAULT 0,
+          failed_tasks INTEGER NOT NULL DEFAULT 0,
+          last_anomaly_at INTEGER,
+          workspace_id INTEGER NOT NULL DEFAULT 1,
+          updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          UNIQUE(agent_name, workspace_id)
+        )
+      `)
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS mcp_call_log (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          agent_name TEXT,
+          mcp_server TEXT,
+          tool_name TEXT,
+          success INTEGER NOT NULL DEFAULT 1,
+          duration_ms INTEGER,
+          error TEXT,
+          workspace_id INTEGER NOT NULL DEFAULT 1,
+          created_at INTEGER NOT NULL DEFAULT (unixepoch())
+        )
+      `)
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_mcp_call_log_agent_name ON mcp_call_log(agent_name)`)
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_mcp_call_log_created_at ON mcp_call_log(created_at)`)
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_mcp_call_log_tool_name ON mcp_call_log(tool_name)`)
+    }
+  },
+  {
+    id: '038_agent_evals',
+    up(db: Database.Database) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS eval_runs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          agent_name TEXT NOT NULL,
+          eval_layer TEXT NOT NULL,
+          score REAL,
+          passed INTEGER,
+          detail TEXT,
+          golden_dataset_id INTEGER,
+          workspace_id INTEGER NOT NULL DEFAULT 1,
+          created_at INTEGER NOT NULL DEFAULT (unixepoch())
+        )
+      `)
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_eval_runs_agent_name ON eval_runs(agent_name)`)
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_eval_runs_eval_layer ON eval_runs(eval_layer)`)
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_eval_runs_created_at ON eval_runs(created_at)`)
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS eval_golden_sets (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          description TEXT,
+          entries TEXT NOT NULL DEFAULT '[]',
+          created_by TEXT,
+          workspace_id INTEGER NOT NULL DEFAULT 1,
+          created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          UNIQUE(name, workspace_id)
+        )
+      `)
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS eval_traces (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          agent_name TEXT NOT NULL,
+          task_id INTEGER,
+          trace TEXT NOT NULL DEFAULT '[]',
+          convergence_score REAL,
+          total_steps INTEGER,
+          optimal_steps INTEGER,
+          workspace_id INTEGER NOT NULL DEFAULT 1,
+          created_at INTEGER NOT NULL DEFAULT (unixepoch())
+        )
+      `)
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_eval_traces_agent_name ON eval_traces(agent_name)`)
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_eval_traces_task_id ON eval_traces(task_id)`)
+    }
+  },
+  {
+    id: '039_session_costs',
+    up(db: Database.Database) {
+      const columns = db.prepare(`PRAGMA table_info(token_usage)`).all() as Array<{ name: string }>
+      const existing = new Set(columns.map((c) => c.name))
+
+      if (!existing.has('cost_usd')) {
+        db.exec(`ALTER TABLE token_usage ADD COLUMN cost_usd REAL`)
+      }
+      if (!existing.has('agent_name')) {
+        db.exec(`ALTER TABLE token_usage ADD COLUMN agent_name TEXT`)
+      }
+      if (!existing.has('task_id')) {
+        db.exec(`ALTER TABLE token_usage ADD COLUMN task_id INTEGER`)
+      }
+    }
   }
 ]
 

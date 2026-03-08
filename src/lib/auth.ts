@@ -1,6 +1,7 @@
 import { randomBytes, timingSafeEqual } from 'crypto'
 import { getDatabase } from './db'
 import { hashPassword, verifyPassword } from './password'
+import { logSecurityEvent } from './security-events'
 
 // Plugin hook: extensions can register a custom API key resolver without modifying this file.
 type AuthResolverHook = (apiKey: string, agentName: string | null) => User | null
@@ -212,17 +213,23 @@ export function authenticateUser(username: string, password: string): User | nul
   if (!row) {
     // Always run verifyPassword to prevent timing-based username enumeration
     verifyPassword(password, DUMMY_HASH)
+    try { logSecurityEvent({ event_type: 'auth_failure', severity: 'warning', source: 'auth', detail: JSON.stringify({ username, reason: 'user_not_found' }), workspace_id: 1, tenant_id: 1 }) } catch {}
     return null
   }
   if ((row.provider || 'local') !== 'local') {
     verifyPassword(password, DUMMY_HASH)
+    try { logSecurityEvent({ event_type: 'auth_failure', severity: 'warning', source: 'auth', detail: JSON.stringify({ username, reason: 'wrong_provider' }), workspace_id: 1, tenant_id: 1 }) } catch {}
     return null
   }
   if ((row.is_approved ?? 1) !== 1) {
     verifyPassword(password, DUMMY_HASH)
+    try { logSecurityEvent({ event_type: 'auth_failure', severity: 'warning', source: 'auth', detail: JSON.stringify({ username, reason: 'not_approved' }), workspace_id: 1, tenant_id: 1 }) } catch {}
     return null
   }
-  if (!verifyPassword(password, row.password_hash)) return null
+  if (!verifyPassword(password, row.password_hash)) {
+    try { logSecurityEvent({ event_type: 'auth_failure', severity: 'warning', source: 'auth', detail: JSON.stringify({ username, reason: 'invalid_password' }), workspace_id: 1, tenant_id: 1 }) } catch {}
+    return null
+  }
   return {
     id: row.id,
     username: row.username,

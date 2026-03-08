@@ -34,6 +34,7 @@ import { SkillsPanel } from '@/components/panels/skills-panel'
 import { LocalAgentsDocPanel } from '@/components/panels/local-agents-doc-panel'
 import { ChannelsPanel } from '@/components/panels/channels-panel'
 import { DebugPanel } from '@/components/panels/debug-panel'
+import { SecurityAuditPanel } from '@/components/panels/security-audit-panel'
 import { NodesPanel } from '@/components/panels/nodes-panel'
 import { ExecApprovalPanel } from '@/components/panels/exec-approval-panel'
 import { ChatPagePanel } from '@/components/panels/chat-page-panel'
@@ -382,6 +383,8 @@ function ContentRouter({ tab }: { tab: string }) {
     case 'nodes':
       if (isLocal) return <LocalModeUnavailable panel={tab} />
       return <NodesPanel />
+    case 'security':
+      return <SecurityAuditPanel />
     case 'debug':
       return <DebugPanel />
     case 'exec-approvals':

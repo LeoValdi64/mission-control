@@ -520,6 +520,10 @@ interface MissionControlStore {
   addExecApproval: (approval: ExecApprovalRequest) => void
   updateExecApproval: (id: string, updates: Partial<ExecApprovalRequest>) => void
 
+  // Security Posture
+  securityPosture?: { score: number; level: string }
+  setSecurityPosture: (posture: { score: number; level: string } | undefined) => void
+
   // Dashboard Layout
   dashboardLayout: string[] | null
   setDashboardLayout: (layout: string[] | null) => void
@@ -803,6 +807,10 @@ export const useMissionControl = create<MissionControlStore>()(
       set((state) => ({
         execApprovals: state.execApprovals.map(a => a.id === id ? { ...a, ...updates } : a),
       })),
+
+    // Security Posture
+    securityPosture: undefined,
+    setSecurityPosture: (posture) => set({ securityPosture: posture }),
 
     // Dashboard Layout
     dashboardLayout: (() => {

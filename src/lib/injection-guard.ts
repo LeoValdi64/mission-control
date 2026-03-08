@@ -277,6 +277,18 @@ export function sanitizeForPrompt(input: string): string {
     .replace(/\[(?:SYSTEM|INST|HIDDEN|ADMIN)\s*(?:OVERRIDE|MESSAGE|INSTRUCTION)?[\]:]/gi, '')
 }
 
+/** Scan for injection and log security event if unsafe */
+export function scanAndLogInjection(text: string, options?: GuardOptions, context?: { agentName?: string; source?: string; workspaceId?: number }): InjectionReport {
+  const report = scanForInjection(text, options)
+  if (!report.safe) {
+    try {
+      const { logSecurityEvent } = require('./security-events')
+      logSecurityEvent({ event_type: 'injection_attempt', severity: report.matches.some(m => m.severity === 'critical') ? 'critical' : 'warning', source: context?.source || 'injection-guard', agent_name: context?.agentName, detail: JSON.stringify({ matches: report.matches.map(m => ({ rule: m.rule, category: m.category, severity: m.severity })) }), workspace_id: context?.workspaceId || 1, tenant_id: 1 })
+    } catch {}
+  }
+  return report
+}
+
 /** Sanitize content for safe HTML rendering (escapes HTML entities) */
 export function escapeHtml(input: string): string {
   return input

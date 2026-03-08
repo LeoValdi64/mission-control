@@ -29,10 +29,11 @@ const categoryLabels: Record<string, { label: string; icon: string; description:
   security: { label: 'Security', icon: '🔑', description: 'API key management and security settings' },
   retention: { label: 'Data Retention', icon: '🗄', description: 'How long data is kept before cleanup' },
   gateway: { label: 'Gateway', icon: '🔌', description: 'OpenClaw gateway connection settings' },
+  profiles: { label: 'Security Profiles', icon: 'shield', description: 'Hook profile controls security scanning strictness' },
   custom: { label: 'Custom', icon: '🔧', description: 'User-defined settings' },
 }
 
-const categoryOrder = ['general', 'security', 'retention', 'gateway', 'custom']
+const categoryOrder = ['general', 'security', 'profiles', 'retention', 'gateway', 'custom']
 
 // Dropdown options for subscription plan settings
 const subscriptionDropdowns: Record<string, { label: string; value: string }[]> = {
@@ -75,6 +76,8 @@ export function SettingsPanel() {
   const [rotating, setRotating] = useState(false)
   const [keyCopied, setKeyCopied] = useState(false)
   const [showSecurityScan, setShowSecurityScan] = useState(false)
+  const [hookProfile, setHookProfile] = useState<string>('standard')
+  const [hookProfileSaving, setHookProfileSaving] = useState(false)
 
   const showFeedback = (ok: boolean, text: string) => {
     setFeedback({ ok, text })
@@ -100,6 +103,9 @@ export function SettingsPanel() {
       const data = await res.json()
       setSettings(data.settings || [])
       setGrouped(data.grouped || {})
+      // Load hook profile from settings
+      const hpSetting = (data.settings || []).find((s: Setting) => s.key === 'hook_profile')
+      if (hpSetting) setHookProfile(hpSetting.value)
     } catch {
       setError('Failed to load settings')
     } finally {
@@ -243,7 +249,7 @@ export function SettingsPanel() {
     )
   }
 
-  const categories = categoryOrder.filter(c => c === 'security' || (grouped[c]?.length > 0))
+  const categories = categoryOrder.filter(c => c === 'security' || c === 'profiles' || (grouped[c]?.length > 0))
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
@@ -474,6 +480,67 @@ export function SettingsPanel() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Security Profiles: Hook Profile Selector */}
+      {activeCategory === 'profiles' && (
+        <div className="space-y-3">
+          <div className="bg-card border border-border rounded-lg p-4">
+            <h3 className="text-sm font-medium text-foreground mb-1">Hook Profile</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Controls how aggressively security hooks scan tool calls and agent outputs.
+            </p>
+            <div className="space-y-2">
+              {([
+                { value: 'minimal', label: 'Minimal', desc: 'Basic safety checks only. Best for trusted environments with low risk tolerance overhead.' },
+                { value: 'standard', label: 'Standard', desc: 'Balanced scanning for secrets, injections, and suspicious patterns. Recommended for most deployments.' },
+                { value: 'strict', label: 'Strict', desc: 'Full depth scanning with aggressive blocking. May increase latency. Best for sensitive or compliance-driven environments.' },
+              ] as const).map(profile => (
+                <button
+                  key={profile.value}
+                  onClick={async () => {
+                    setHookProfile(profile.value)
+                    setHookProfileSaving(true)
+                    try {
+                      const res = await fetch('/api/settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key: 'hook_profile', value: profile.value }),
+                      })
+                      if (res.ok) {
+                        showFeedback(true, `Hook profile set to ${profile.label}`)
+                      } else {
+                        showFeedback(false, 'Failed to save hook profile')
+                      }
+                    } catch {
+                      showFeedback(false, 'Network error')
+                    } finally {
+                      setHookProfileSaving(false)
+                    }
+                  }}
+                  disabled={hookProfileSaving}
+                  className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                    hookProfile === profile.value
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-muted-foreground/30 bg-secondary'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={`w-3 h-3 rounded-full border-2 flex items-center justify-center ${
+                      hookProfile === profile.value ? 'border-primary' : 'border-muted-foreground/50'
+                    }`}>
+                      {hookProfile === profile.value && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      )}
+                    </div>
+                    <span className="text-sm font-medium text-foreground">{profile.label}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground ml-5">{profile.desc}</p>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

@@ -6,6 +6,8 @@ import { validateBody, createMessageSchema } from '@/lib/validation'
 import { mutationLimiter } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 import { scanForInjection } from '@/lib/injection-guard'
+import { scanForSecrets } from '@/lib/secret-scanner'
+import { logSecurityEvent } from '@/lib/security-events'
 
 export async function POST(request: NextRequest) {
   const auth = requireRole(request, 'operator')
@@ -30,6 +32,11 @@ export async function POST(request: NextRequest) {
           { status: 422 }
         )
       }
+    }
+
+    const secretHits = scanForSecrets(message)
+    if (secretHits.length > 0) {
+      try { logSecurityEvent({ event_type: 'secret_exposure', severity: 'critical', source: 'agent-message', agent_name: from, detail: JSON.stringify({ count: secretHits.length, types: secretHits.map(s => s.type) }), workspace_id: auth.user.workspace_id ?? 1, tenant_id: 1 }) } catch {}
     }
 
     const db = getDatabase()
