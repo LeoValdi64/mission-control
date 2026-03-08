@@ -30,6 +30,13 @@ interface ScanResult {
   }
 }
 
+// Check IDs that the /api/security-scan/fix endpoint can auto-fix
+const FIXABLE_IDS = new Set([
+  'env_permissions', 'allowed_hosts', 'hsts_enabled', 'cookie_secure',
+  'api_key_set', 'config_permissions', 'gateway_auth', 'gateway_bind',
+  'elevated_disabled', 'dm_isolation', 'exec_restricted', 'world_writable',
+])
+
 const STATUS_ICON: Record<string, string> = {
   pass: '+',
   fail: 'x',
@@ -63,6 +70,8 @@ export function SecurityScanCard({ compact = false, autoScan = false }: { compac
   const [error, setError] = useState<string | null>(null)
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
   const [copiedFix, setCopiedFix] = useState<string | null>(null)
+  const [fixing, setFixing] = useState<string | null>(null) // 'all' or a check id
+  const [fixResult, setFixResult] = useState<{ fixed: number; failed: number; note?: string } | null>(null)
 
   const copyFix = useCallback(async (fix: string, checkId: string) => {
     try {
@@ -85,6 +94,7 @@ export function SecurityScanCard({ compact = false, autoScan = false }: { compac
   const runScan = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setFixResult(null)
     try {
       const res = await fetch('/api/security-scan')
       if (!res.ok) {
@@ -98,6 +108,31 @@ export function SecurityScanCard({ compact = false, autoScan = false }: { compac
       setLoading(false)
     }
   }, [])
+
+  const runFix = useCallback(async (ids?: string[]) => {
+    const fixKey = ids?.length === 1 ? ids[0] : 'all'
+    setFixing(fixKey)
+    setFixResult(null)
+    try {
+      const res = await fetch('/api/security-scan/fix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: ids ? JSON.stringify({ ids }) : '{}',
+      })
+      if (!res.ok) {
+        setFixResult({ fixed: 0, failed: 1, note: res.status === 401 ? 'Admin access required' : 'Fix failed' })
+        return
+      }
+      const data = await res.json()
+      setFixResult({ fixed: data.fixed, failed: data.failed, note: data.note })
+      // Re-scan after fixes
+      setTimeout(() => runScan(), 1500)
+    } catch {
+      setFixResult({ fixed: 0, failed: 1, note: 'Network error' })
+    } finally {
+      setTimeout(() => setFixing(null), 1500)
+    }
+  }, [runScan])
 
   useEffect(() => {
     if (autoScan && !result && !loading && !error) {
@@ -170,17 +205,37 @@ export function SecurityScanCard({ compact = false, autoScan = false }: { compac
         />
       </div>
 
-      {/* Issue summary */}
+      {/* Issue summary + Fix All */}
       {(() => {
         const totalFailing = Object.values(result.categories).reduce(
           (sum, cat) => sum + cat.checks.filter(c => c.status !== 'pass').length, 0
         )
         return totalFailing > 0 ? (
-          <p className="text-xs text-muted-foreground">
-            {totalFailing} issue{totalFailing > 1 ? 's' : ''} found — expand categories to see fixes
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              {totalFailing} issue{totalFailing > 1 ? 's' : ''} found
+            </p>
+            <Button
+              onClick={() => runFix()}
+              disabled={fixing !== null}
+              variant="outline"
+              size="sm"
+              className="text-xs border-void-cyan/30 text-void-cyan hover:bg-void-cyan/10"
+            >
+              {fixing === 'all' ? 'Fixing...' : 'Fix All Issues'}
+            </Button>
+          </div>
         ) : null
       })()}
+
+      {/* Fix result feedback */}
+      {fixResult && (
+        <div className={`text-xs px-3 py-2 rounded-lg border ${fixResult.failed > 0 ? 'bg-amber-500/10 border-amber-500/20 text-amber-300' : 'bg-green-500/10 border-green-500/20 text-green-300'}`}>
+          {fixResult.fixed > 0 && <span>{fixResult.fixed} issue{fixResult.fixed > 1 ? 's' : ''} fixed. </span>}
+          {fixResult.failed > 0 && <span>{fixResult.failed} failed. </span>}
+          {fixResult.note && <span className="text-muted-foreground">{fixResult.note}</span>}
+        </div>
+      )}
 
       {/* Categories */}
       <div className="space-y-2">
@@ -225,6 +280,16 @@ export function SecurityScanCard({ compact = false, autoScan = false }: { compac
                         {check.fix && check.status !== 'pass' && (
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <p className="text-xs text-void-cyan/70 flex-1 min-w-0">Fix: {check.fix}</p>
+                            {FIXABLE_IDS.has(check.id) && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); runFix([check.id]) }}
+                                disabled={fixing !== null}
+                                className="shrink-0 px-1.5 py-0.5 text-2xs rounded border border-void-cyan/30 text-void-cyan hover:bg-void-cyan/10 transition-colors disabled:opacity-50"
+                                title="Auto-fix this issue"
+                              >
+                                {fixing === check.id ? 'Fixing...' : 'Fix'}
+                              </button>
+                            )}
                             <button
                               onClick={(e) => { e.stopPropagation(); copyFix(check.fix, check.id) }}
                               className="shrink-0 px-1.5 py-0.5 text-2xs rounded border border-border/50 text-muted-foreground hover:text-foreground hover:border-border transition-colors"

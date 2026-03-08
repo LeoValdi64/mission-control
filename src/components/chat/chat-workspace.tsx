@@ -195,18 +195,17 @@ export function ChatWorkspace({ mode = 'embedded', onClose }: ChatWorkspaceProps
       setSessionTranscriptError(null)
       return
     }
-    if (sessionMeta.sessionKind === 'gateway') {
-      setSessionTranscript([])
-      setSessionTranscriptLoading(false)
-      setSessionTranscriptError(null)
-      return
-    }
 
     let cancelled = false
     setSessionTranscriptLoading(true)
     setSessionTranscriptError(null)
 
-    fetch(`/api/sessions/transcript?kind=${encodeURIComponent(sessionMeta.sessionKind)}&id=${encodeURIComponent(sessionMeta.sessionId)}&limit=40`)
+    // Gateway sessions use the gateway transcript API
+    const url = sessionMeta.sessionKind === 'gateway'
+      ? `/api/sessions/transcript/gateway?key=${encodeURIComponent(sessionMeta.sessionKey || sessionMeta.sessionId)}&limit=50`
+      : `/api/sessions/transcript?kind=${encodeURIComponent(sessionMeta.sessionKind)}&id=${encodeURIComponent(sessionMeta.sessionId)}&limit=40`
+
+    fetch(url)
       .then(async (res) => {
         if (!res.ok) {
           const payload = await res.json().catch(() => ({}))
@@ -439,24 +438,51 @@ function SessionConversationView({
     setContinueError(null)
     setLastReply(null)
     try {
-      const res = await fetch('/api/sessions/continue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kind: session.sessionKind,
-          id: session.sessionId,
-          prompt,
-        }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        throw new Error(data?.error || 'Failed to continue session')
+      if (isGatewaySession) {
+        // Gateway sessions: forward message to the agent via chat messages API
+        const agentName = session.agent || session.sessionId.split(':')[1] || 'unknown'
+        const res = await fetch('/api/chat/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: agentName,
+            content: prompt,
+            conversation_id: `agent_${agentName}`,
+            message_type: 'text',
+            forward: true,
+          }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          throw new Error(data?.error || 'Failed to send message')
+        }
+        const fwd = data?.message?.metadata?.forwardInfo
+        if (fwd?.attempted && !fwd?.delivered) {
+          setContinueError(`Message saved but not delivered: ${fwd.reason || 'unknown'}`)
+        }
+        setContinuePrompt('')
+        // Refresh transcript after a short delay to capture the response
+        setTimeout(() => onRefreshTranscript(), 2000)
+      } else {
+        const res = await fetch('/api/sessions/continue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            kind: session.sessionKind,
+            id: session.sessionId,
+            prompt,
+          }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          throw new Error(data?.error || 'Failed to continue session')
+        }
+        setContinuePrompt('')
+        if (typeof data?.reply === 'string' && data.reply.trim()) {
+          setLastReply(data.reply.trim())
+        }
+        onRefreshTranscript()
       }
-      setContinuePrompt('')
-      if (typeof data?.reply === 'string' && data.reply.trim()) {
-        setLastReply(data.reply.trim())
-      }
-      onRefreshTranscript()
     } catch (err) {
       setContinueError(err instanceof Error ? err.message : 'Failed to continue session')
     } finally {
@@ -489,7 +515,7 @@ function SessionConversationView({
           <span className={`rounded-full px-2 py-0.5 text-[10px] ${session.active ? 'bg-green-500/20 text-green-300' : 'bg-muted text-muted-foreground'}`}>
             {session.active ? 'active' : 'idle'}
           </span>
-          <span className="font-mono-tight">{session.sessionKind === 'codex-cli' ? 'Codex CLI' : 'Claude Code'}</span>
+          <span className="font-mono-tight">{session.sessionKind === 'codex-cli' ? 'Codex CLI' : session.sessionKind === 'gateway' ? 'Gateway' : 'Claude Code'}</span>
           {session.model && <span className="text-muted-foreground/60">{session.model}</span>}
           {session.tokens && <span className="text-muted-foreground/60">{session.tokens}</span>}
           {session.workingDir && <span className="hidden truncate text-muted-foreground/50 sm:inline max-w-[200px]">{session.workingDir}</span>}
@@ -555,7 +581,7 @@ function SessionConversationView({
         )}
         {!loading && !error && messages.length === 0 && (
           <div className="px-4 text-xs text-muted-foreground">
-            {isGatewaySession ? 'Gateway session selected. Transcript is provided by the gateway runtime.' : 'No transcript snippets found for this session.'}
+            {isGatewaySession ? 'No messages loaded for this gateway session.' : 'No transcript snippets found for this session.'}
           </div>
         )}
         {!loading && !error && messages.length > 0 && (
@@ -572,10 +598,9 @@ function SessionConversationView({
       </div>
 
       {/* Continue session input */}
-      {!isGatewaySession && (
       <div className="border-t border-border/50 px-4 py-2">
         <div className="flex items-center gap-2">
-          <span className="font-mono-tight text-xs text-green-400/60">$</span>
+          <span className={`font-mono-tight text-xs ${isGatewaySession ? 'text-cyan-400/60' : 'text-green-400/60'}`}>{isGatewaySession ? '>' : '$'}</span>
           <input
             value={continuePrompt}
             onChange={(e) => setContinuePrompt(e.target.value)}
@@ -585,7 +610,7 @@ function SessionConversationView({
                 void handleContinueSession()
               }
             }}
-            placeholder="Send prompt to this local session..."
+            placeholder={isGatewaySession ? 'Send message to this agent session...' : 'Send prompt to this local session...'}
             className="h-7 flex-1 rounded border border-border/40 bg-surface-1 px-2 font-mono-tight text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30"
           />
           <Button
@@ -605,7 +630,6 @@ function SessionConversationView({
           </div>
         )}
       </div>
-      )}
     </div>
   )
 }

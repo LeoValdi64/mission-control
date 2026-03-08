@@ -64,7 +64,7 @@ function isLocalHost(hostname: string): boolean {
 export default function Home() {
   const router = useRouter()
   const { connect } = useWebSocket()
-  const { activeTab, setActiveTab, setCurrentUser, setDashboardMode, setGatewayAvailable, setCapabilitiesChecked, setSubscription, setDefaultOrgName, setUpdateAvailable, setOpenclawUpdate, setShowOnboarding, liveFeedOpen, toggleLiveFeed, showProjectManagerModal, setShowProjectManagerModal, fetchProjects, setChatPanelOpen } = useMissionControl()
+  const { activeTab, setActiveTab, setCurrentUser, setDashboardMode, setGatewayAvailable, setCapabilitiesChecked, setSubscription, setDefaultOrgName, setUpdateAvailable, setOpenclawUpdate, setShowOnboarding, liveFeedOpen, toggleLiveFeed, showProjectManagerModal, setShowProjectManagerModal, fetchProjects, setChatPanelOpen, bootComplete, setBootComplete } = useMissionControl()
 
   // Sync URL → Zustand activeTab
   const pathname = usePathname()
@@ -88,7 +88,6 @@ export default function Home() {
   // Connect to SSE for real-time local DB events (tasks, agents, chat, etc.)
   useServerEvents()
   const [isClient, setIsClient] = useState(false)
-  const [initDone, setInitDone] = useState(false)
   const [initSteps, setInitSteps] = useState<Array<{ key: string; label: string; status: 'pending' | 'done' }>>([
     { key: 'auth',         label: 'Authenticating',     status: 'pending' },
     { key: 'capabilities', label: 'Detecting mode',     status: 'pending' },
@@ -101,11 +100,11 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (initSteps.every(s => s.status === 'done')) {
-      const t = setTimeout(() => setInitDone(true), 400)
+    if (!bootComplete && initSteps.every(s => s.status === 'done')) {
+      const t = setTimeout(() => setBootComplete(), 400)
       return () => clearTimeout(t)
     }
-  }, [initSteps])
+  }, [initSteps, bootComplete, setBootComplete])
 
   useEffect(() => {
     setIsClient(true)
@@ -254,7 +253,7 @@ export default function Home() {
       .catch(() => { markStep('config') })
   }, [connect, pathname, router, setCurrentUser, setDashboardMode, setGatewayAvailable, setCapabilitiesChecked, setSubscription, setUpdateAvailable, setShowOnboarding])
 
-  if (!isClient || !initDone) {
+  if (!isClient || !bootComplete) {
     return <Loader variant="page" steps={isClient ? initSteps : undefined} />
   }
 

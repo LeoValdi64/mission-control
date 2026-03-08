@@ -216,7 +216,9 @@ export interface Conversation {
   session?: {
     prefKey?: string
     sessionId: string
+    sessionKey?: string
     sessionKind: 'claude-code' | 'codex-cli' | 'gateway'
+    agent?: string
     displayName?: string
     colorTag?: string
     model?: string
@@ -348,12 +350,14 @@ interface MissionControlStore {
   gatewayAvailable: boolean
   bannerDismissed: boolean
   capabilitiesChecked: boolean
+  bootComplete: boolean
   subscription: { type: string; provider?: string; rateLimitTier?: string } | null
   defaultOrgName: string
   setDashboardMode: (mode: 'full' | 'local') => void
   setGatewayAvailable: (available: boolean) => void
   dismissBanner: () => void
   setCapabilitiesChecked: (checked: boolean) => void
+  setBootComplete: () => void
   setSubscription: (sub: { type: string; provider?: string; rateLimitTier?: string } | null) => void
   setDefaultOrgName: (name: string) => void
 
@@ -555,12 +559,14 @@ export const useMissionControl = create<MissionControlStore>()(
     gatewayAvailable: false,
     bannerDismissed: false,
     capabilitiesChecked: false,
+    bootComplete: false,
     subscription: null,
     defaultOrgName: 'Default',
     setDashboardMode: (mode) => set({ dashboardMode: mode }),
     setGatewayAvailable: (available) => set({ gatewayAvailable: available }),
     dismissBanner: () => set({ bannerDismissed: true }),
     setCapabilitiesChecked: (checked) => set({ capabilitiesChecked: checked }),
+    setBootComplete: () => set({ bootComplete: true }),
     setSubscription: (sub) => set({ subscription: sub }),
     setDefaultOrgName: (name) => set({ defaultOrgName: name }),
 

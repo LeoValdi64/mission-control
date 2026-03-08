@@ -1,0 +1,243 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { existsSync, readFileSync, writeFileSync, chmodSync, statSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import path from 'node:path'
+import crypto from 'node:crypto'
+import { requireRole } from '@/lib/auth'
+import { config } from '@/lib/config'
+import { getDatabase } from '@/lib/db'
+import { logger } from '@/lib/logger'
+
+interface FixResult {
+  id: string
+  name: string
+  fixed: boolean
+  detail: string
+}
+
+export async function POST(request: NextRequest) {
+  const auth = requireRole(request, 'admin')
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
+  // Optional: pass { ids: ["check_id"] } to fix only specific issues
+  let targetIds: Set<string> | null = null
+  try {
+    const body = await request.json()
+    if (Array.isArray(body?.ids) && body.ids.length > 0) {
+      targetIds = new Set(body.ids as string[])
+    }
+  } catch { /* no body = fix all */ }
+
+  const shouldFix = (id: string) => !targetIds || targetIds.has(id)
+
+  const results: FixResult[] = []
+  const envPath = path.join(process.cwd(), '.env')
+
+  function readEnv(): string {
+    try { return readFileSync(envPath, 'utf-8') } catch { return '' }
+  }
+
+  function setEnvVar(key: string, value: string) {
+    let content = readEnv()
+    const regex = new RegExp(`^${key}=.*$`, 'm')
+    if (regex.test(content)) {
+      content = content.replace(regex, `${key}=${value}`)
+    } else {
+      content = content.trimEnd() + `\n${key}=${value}\n`
+    }
+    writeFileSync(envPath, content, 'utf-8')
+  }
+
+  // 1. Fix .env file permissions
+  if (shouldFix('env_permissions') && existsSync(envPath)) {
+    try {
+      const stat = statSync(envPath)
+      const mode = (stat.mode & 0o777).toString(8)
+      if (mode !== '600') {
+        chmodSync(envPath, 0o600)
+        results.push({ id: 'env_permissions', name: '.env file permissions', fixed: true, detail: `Changed from ${mode} to 600` })
+      } else {
+        results.push({ id: 'env_permissions', name: '.env file permissions', fixed: true, detail: 'Already 600' })
+      }
+    } catch (e: any) {
+      results.push({ id: 'env_permissions', name: '.env file permissions', fixed: false, detail: e.message })
+    }
+  }
+
+  // 2. Fix MC_ALLOWED_HOSTS if not set
+  const allowedHosts = (process.env.MC_ALLOWED_HOSTS || '').trim()
+  const allowAny = process.env.MC_ALLOW_ANY_HOST
+  if (shouldFix('allowed_hosts') && (!allowedHosts || allowAny === '1' || allowAny === 'true')) {
+    try {
+      if (allowAny) {
+        let content = readEnv()
+        content = content.replace(/^MC_ALLOW_ANY_HOST=.*\n?/m, '')
+        writeFileSync(envPath, content, 'utf-8')
+      }
+      setEnvVar('MC_ALLOWED_HOSTS', 'localhost,127.0.0.1')
+      results.push({ id: 'allowed_hosts', name: 'Host allowlist', fixed: true, detail: 'Set MC_ALLOWED_HOSTS=localhost,127.0.0.1' })
+    } catch (e: any) {
+      results.push({ id: 'allowed_hosts', name: 'Host allowlist', fixed: false, detail: e.message })
+    }
+  }
+
+  // 3. Fix MC_ENABLE_HSTS
+  if (shouldFix('hsts_enabled') && process.env.MC_ENABLE_HSTS !== '1') {
+    try {
+      setEnvVar('MC_ENABLE_HSTS', '1')
+      results.push({ id: 'hsts_enabled', name: 'HSTS enabled', fixed: true, detail: 'Set MC_ENABLE_HSTS=1' })
+    } catch (e: any) {
+      results.push({ id: 'hsts_enabled', name: 'HSTS', fixed: false, detail: e.message })
+    }
+  }
+
+  // 4. Fix MC_COOKIE_SECURE
+  const cookieSecure = process.env.MC_COOKIE_SECURE
+  if (shouldFix('cookie_secure') && cookieSecure !== '1' && cookieSecure !== 'true') {
+    try {
+      setEnvVar('MC_COOKIE_SECURE', '1')
+      results.push({ id: 'cookie_secure', name: 'Secure cookies', fixed: true, detail: 'Set MC_COOKIE_SECURE=1' })
+    } catch (e: any) {
+      results.push({ id: 'cookie_secure', name: 'Secure cookies', fixed: false, detail: e.message })
+    }
+  }
+
+  // 5. Fix API_KEY if it's a known default
+  const apiKey = process.env.API_KEY || ''
+  if (shouldFix('api_key_set') && (!apiKey || apiKey === 'generate-a-random-key')) {
+    try {
+      const newKey = crypto.randomBytes(32).toString('hex')
+      setEnvVar('API_KEY', newKey)
+      results.push({ id: 'api_key_set', name: 'API key', fixed: true, detail: 'Generated new random API key' })
+    } catch (e: any) {
+      results.push({ id: 'api_key_set', name: 'API key', fixed: false, detail: e.message })
+    }
+  }
+
+  // 6. Fix OpenClaw config
+  const ocFixIds = ['config_permissions', 'gateway_auth', 'gateway_bind', 'elevated_disabled', 'dm_isolation', 'exec_restricted']
+  const configPath = config.openclawConfigPath
+  if (ocFixIds.some(id => shouldFix(id)) && configPath && existsSync(configPath)) {
+    let ocConfig: any
+    try {
+      ocConfig = JSON.parse(readFileSync(configPath, 'utf-8'))
+    } catch { ocConfig = null }
+
+    if (ocConfig) {
+      let configChanged = false
+
+      // Fix config file permissions
+      if (shouldFix('config_permissions')) try {
+        const stat = statSync(configPath)
+        const mode = (stat.mode & 0o777).toString(8)
+        if (mode !== '600') {
+          chmodSync(configPath, 0o600)
+          results.push({ id: 'config_permissions', name: 'OpenClaw config permissions', fixed: true, detail: `Changed from ${mode} to 600` })
+        }
+      } catch (e: any) {
+        results.push({ id: 'config_permissions', name: 'OpenClaw config permissions', fixed: false, detail: e.message })
+      }
+
+      // Fix gateway auth
+      if (shouldFix('gateway_auth')) {
+        if (!ocConfig.gateway) ocConfig.gateway = {}
+        if (!ocConfig.gateway.auth) ocConfig.gateway.auth = {}
+        if (ocConfig.gateway.auth.mode !== 'token') {
+          ocConfig.gateway.auth.mode = 'token'
+          if (!ocConfig.gateway.auth.token) {
+            ocConfig.gateway.auth.token = crypto.randomBytes(32).toString('hex')
+          }
+          configChanged = true
+          results.push({ id: 'gateway_auth', name: 'Gateway authentication', fixed: true, detail: 'Set auth.mode to "token" with generated token' })
+        }
+      }
+
+      // Fix gateway bind
+      if (shouldFix('gateway_bind')) {
+        if (!ocConfig.gateway) ocConfig.gateway = {}
+        if (ocConfig.gateway.bind !== 'loopback' && ocConfig.gateway.bind !== '127.0.0.1') {
+          ocConfig.gateway.bind = 'loopback'
+          configChanged = true
+          results.push({ id: 'gateway_bind', name: 'Gateway bind address', fixed: true, detail: 'Set bind to "loopback"' })
+        }
+      }
+
+      // Fix elevated mode
+      if (shouldFix('elevated_disabled')) {
+        if (!ocConfig.elevated) ocConfig.elevated = {}
+        if (ocConfig.elevated.enabled === true) {
+          ocConfig.elevated.enabled = false
+          configChanged = true
+          results.push({ id: 'elevated_disabled', name: 'Elevated mode', fixed: true, detail: 'Disabled elevated mode' })
+        }
+      }
+
+      // Fix DM isolation
+      if (shouldFix('dm_isolation')) {
+        if (!ocConfig.session) ocConfig.session = {}
+        if (ocConfig.session.dmScope !== 'per-channel-peer') {
+          ocConfig.session.dmScope = 'per-channel-peer'
+          configChanged = true
+          results.push({ id: 'dm_isolation', name: 'DM session isolation', fixed: true, detail: 'Set dmScope to "per-channel-peer"' })
+        }
+      }
+
+      // Fix exec security
+      if (shouldFix('exec_restricted')) {
+        if (!ocConfig.tools) ocConfig.tools = {}
+        if (!ocConfig.tools.exec) ocConfig.tools.exec = {}
+        if (ocConfig.tools.exec.security !== 'sandbox' && ocConfig.tools.exec.security !== 'deny') {
+          ocConfig.tools.exec.security = 'sandbox'
+          configChanged = true
+          results.push({ id: 'exec_restricted', name: 'Exec tool restriction', fixed: true, detail: 'Set exec security to "sandbox"' })
+        }
+      }
+
+      if (configChanged) {
+        try {
+          writeFileSync(configPath, JSON.stringify(ocConfig, null, 2) + '\n', 'utf-8')
+        } catch (e: any) {
+          results.push({ id: 'config_write', name: 'Write OpenClaw config', fixed: false, detail: e.message })
+        }
+      }
+    }
+  }
+
+  // 7. Fix world-writable files (uses execFileSync with find — no user input)
+  if (shouldFix('world_writable')) try {
+    const cwd = process.cwd()
+    const wwOutput = execFileSync('find', [cwd, '-maxdepth', '2', '-perm', '-o+w', '-not', '-type', 'l'], {
+      encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim()
+    if (wwOutput) {
+      const files = wwOutput.split('\n').filter(Boolean).slice(0, 20)
+      let fixedCount = 0
+      for (const f of files) {
+        try { chmodSync(f, 0o755); fixedCount++ } catch { /* skip */ }
+      }
+      if (fixedCount > 0) {
+        results.push({ id: 'world_writable', name: 'World-writable files', fixed: true, detail: `Fixed permissions on ${fixedCount} file(s)` })
+      }
+    }
+  } catch { /* no world-writable files or find not available */ }
+
+  // Audit log
+  try {
+    const db = getDatabase()
+    db.prepare(
+      'INSERT INTO audit_log (action, actor, detail) VALUES (?, ?, ?)'
+    ).run('security.auto_fix', auth.user.username, JSON.stringify({ fixes: results.filter(r => r.fixed).map(r => r.id) }))
+  } catch { /* non-critical */ }
+
+  const fixed = results.filter(r => r.fixed).length
+  const failed = results.filter(r => !r.fixed).length
+
+  logger.info({ fixed, failed, actor: auth.user.username }, 'Security auto-fix completed')
+
+  return NextResponse.json({
+    fixed,
+    failed,
+    results,
+    note: 'Some fixes (e.g. env var changes) require a server restart to take effect.',
+  })
+}

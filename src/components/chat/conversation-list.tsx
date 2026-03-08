@@ -217,7 +217,9 @@ export function ConversationList({ onNewConversation: _onNewConversation }: Conv
             session: {
               prefKey,
               sessionId: String(s.id),
+              sessionKey: s.key || undefined,
               sessionKind,
+              agent: s.agent || undefined,
               displayName: sessionName,
               colorTag: typeof pref.color === 'string' ? pref.color : undefined,
               model: s.model,
