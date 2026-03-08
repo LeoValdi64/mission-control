@@ -247,6 +247,106 @@ function scanOpenClaw(): Category {
     fix: execSecurity !== 'deny' && execSecurity !== 'sandbox' ? 'Set tools.exec.security to "deny" or "sandbox"' : '',
   })
 
+  // Control UI device auth (critical if disabled)
+  const controlUi = ocConfig?.gateway?.controlUi
+  if (controlUi) {
+    checks.push({
+      id: 'control_ui_device_auth',
+      name: 'Control UI device auth',
+      status: controlUi.dangerouslyDisableDeviceAuth === true ? 'fail' : 'pass',
+      detail: controlUi.dangerouslyDisableDeviceAuth === true
+        ? 'DANGEROUS: dangerouslyDisableDeviceAuth is enabled — device identity checks are bypassed'
+        : 'Control UI device auth is active',
+      fix: controlUi.dangerouslyDisableDeviceAuth === true
+        ? 'Set gateway.controlUi.dangerouslyDisableDeviceAuth to false unless in a break-glass scenario'
+        : '',
+    })
+
+    checks.push({
+      id: 'control_ui_insecure_auth',
+      name: 'Control UI secure auth',
+      status: controlUi.allowInsecureAuth === true ? 'warn' : 'pass',
+      detail: controlUi.allowInsecureAuth === true
+        ? 'allowInsecureAuth is enabled — consider HTTPS or localhost-only access'
+        : 'Insecure auth toggle is disabled',
+      fix: controlUi.allowInsecureAuth === true
+        ? 'Set gateway.controlUi.allowInsecureAuth to false, use HTTPS (Tailscale Serve) or localhost'
+        : '',
+    })
+  }
+
+  // Filesystem workspace isolation
+  const fsWorkspaceOnly = ocConfig?.tools?.fs?.workspaceOnly
+  checks.push({
+    id: 'fs_workspace_only',
+    name: 'Filesystem workspace isolation',
+    status: fsWorkspaceOnly === true ? 'pass' : 'warn',
+    detail: fsWorkspaceOnly === true
+      ? 'File operations restricted to workspace directory'
+      : 'Agents can access files outside the workspace',
+    fix: fsWorkspaceOnly !== true ? 'Set tools.fs.workspaceOnly to true to restrict file access to the workspace' : '',
+  })
+
+  // Tool deny lists — check if dangerous tool groups are denied
+  const toolsDeny = ocConfig?.tools?.deny
+  const dangerousGroups = ['group:automation', 'group:runtime', 'group:fs']
+  const deniedGroups = Array.isArray(toolsDeny)
+    ? dangerousGroups.filter(g => toolsDeny.includes(g))
+    : []
+  checks.push({
+    id: 'tools_deny_list',
+    name: 'Dangerous tool groups denied',
+    status: deniedGroups.length >= 2 ? 'pass' : deniedGroups.length > 0 ? 'warn' : 'warn',
+    detail: Array.isArray(toolsDeny) && toolsDeny.length > 0
+      ? `Denied: ${toolsDeny.join(', ')}`
+      : 'No tool deny list configured',
+    fix: deniedGroups.length < 2
+      ? 'Add tools.deny: ["group:automation", "group:runtime", "group:fs"] for agents that don\'t need them'
+      : '',
+  })
+
+  // Log redaction
+  const logRedact = ocConfig?.logging?.redactSensitive
+  checks.push({
+    id: 'log_redaction',
+    name: 'Log redaction enabled',
+    status: logRedact ? 'pass' : 'warn',
+    detail: logRedact ? `Log redaction: ${logRedact}` : 'Sensitive data redaction is not configured',
+    fix: !logRedact ? 'Set logging.redactSensitive to "tools" to prevent secrets leaking into logs' : '',
+  })
+
+  // Sandbox mode for agents
+  const sandboxMode = ocConfig?.agents?.defaults?.sandbox?.mode
+  checks.push({
+    id: 'sandbox_mode',
+    name: 'Agent sandbox mode',
+    status: sandboxMode === 'all' ? 'pass' : sandboxMode ? 'warn' : 'warn',
+    detail: sandboxMode ? `Sandbox mode: ${sandboxMode}` : 'No default sandbox mode configured',
+    fix: sandboxMode !== 'all'
+      ? 'Set agents.defaults.sandbox.mode to "all" for full isolation (recommended for untrusted inputs)'
+      : '',
+  })
+
+  // Safe bins interpreter check
+  const safeBins = ocConfig?.tools?.exec?.safeBins
+  if (Array.isArray(safeBins) && safeBins.length > 0) {
+    const interpreters = ['python', 'python3', 'node', 'bun', 'deno', 'ruby', 'perl', 'bash', 'sh', 'zsh']
+    const unsafeInterpreters = safeBins.filter((b: string) => interpreters.includes(b))
+    const safeBinProfiles = ocConfig?.tools?.exec?.safeBinProfiles || {}
+    const unprofiledInterps = unsafeInterpreters.filter((b: string) => !safeBinProfiles[b])
+    checks.push({
+      id: 'safe_bins_interpreters',
+      name: 'Safe bins interpreter profiling',
+      status: unprofiledInterps.length === 0 ? 'pass' : 'warn',
+      detail: unprofiledInterps.length > 0
+        ? `Interpreter binaries without profiles: ${unprofiledInterps.join(', ')}`
+        : 'All interpreter binaries in safeBins have hardened profiles',
+      fix: unprofiledInterps.length > 0
+        ? `Define tools.exec.safeBinProfiles for: ${unprofiledInterps.join(', ')} — or remove them from safeBins`
+        : '',
+    })
+  }
+
   return scoreCategory(checks)
 }
 

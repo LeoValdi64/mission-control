@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
   }
 
   // 6. Fix OpenClaw config
-  const ocFixIds = ['config_permissions', 'gateway_auth', 'gateway_bind', 'elevated_disabled', 'dm_isolation', 'exec_restricted']
+  const ocFixIds = ['config_permissions', 'gateway_auth', 'gateway_bind', 'elevated_disabled', 'dm_isolation', 'exec_restricted', 'control_ui_device_auth', 'control_ui_insecure_auth', 'fs_workspace_only', 'log_redaction']
   const configPath = config.openclawConfigPath
   if (ocFixIds.some(id => shouldFix(id)) && configPath && existsSync(configPath)) {
     let ocConfig: any
@@ -190,6 +190,45 @@ export async function POST(request: NextRequest) {
           ocConfig.tools.exec.security = 'sandbox'
           configChanged = true
           results.push({ id: 'exec_restricted', name: 'Exec tool restriction', fixed: true, detail: 'Set exec security to "sandbox"' })
+        }
+      }
+
+      // Fix Control UI device auth
+      if (shouldFix('control_ui_device_auth')) {
+        if (ocConfig.gateway?.controlUi?.dangerouslyDisableDeviceAuth === true) {
+          ocConfig.gateway.controlUi.dangerouslyDisableDeviceAuth = false
+          configChanged = true
+          results.push({ id: 'control_ui_device_auth', name: 'Control UI device auth', fixed: true, detail: 'Disabled dangerouslyDisableDeviceAuth' })
+        }
+      }
+
+      // Fix Control UI insecure auth
+      if (shouldFix('control_ui_insecure_auth')) {
+        if (ocConfig.gateway?.controlUi?.allowInsecureAuth === true) {
+          ocConfig.gateway.controlUi.allowInsecureAuth = false
+          configChanged = true
+          results.push({ id: 'control_ui_insecure_auth', name: 'Control UI secure auth', fixed: true, detail: 'Disabled allowInsecureAuth' })
+        }
+      }
+
+      // Fix filesystem workspace isolation
+      if (shouldFix('fs_workspace_only')) {
+        if (!ocConfig.tools) ocConfig.tools = {}
+        if (!ocConfig.tools.fs) ocConfig.tools.fs = {}
+        if (ocConfig.tools.fs.workspaceOnly !== true) {
+          ocConfig.tools.fs.workspaceOnly = true
+          configChanged = true
+          results.push({ id: 'fs_workspace_only', name: 'Filesystem workspace isolation', fixed: true, detail: 'Set tools.fs.workspaceOnly to true' })
+        }
+      }
+
+      // Fix log redaction
+      if (shouldFix('log_redaction')) {
+        if (!ocConfig.logging) ocConfig.logging = {}
+        if (!ocConfig.logging.redactSensitive) {
+          ocConfig.logging.redactSensitive = 'tools'
+          configChanged = true
+          results.push({ id: 'log_redaction', name: 'Log redaction', fixed: true, detail: 'Set logging.redactSensitive to "tools"' })
         }
       }
 

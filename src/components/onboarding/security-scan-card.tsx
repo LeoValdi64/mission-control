@@ -35,6 +35,7 @@ const FIXABLE_IDS = new Set([
   'env_permissions', 'allowed_hosts', 'hsts_enabled', 'cookie_secure',
   'api_key_set', 'config_permissions', 'gateway_auth', 'gateway_bind',
   'elevated_disabled', 'dm_isolation', 'exec_restricted', 'world_writable',
+  'control_ui_device_auth', 'control_ui_insecure_auth', 'fs_workspace_only', 'log_redaction',
 ])
 
 const STATUS_ICON: Record<string, string> = {
