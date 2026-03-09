@@ -5,6 +5,7 @@ import { useMissionControl, Conversation } from '@/store'
 import { useSmartPoll } from '@/lib/use-smart-poll'
 import { createClientLogger } from '@/lib/client-logger'
 import { Button } from '@/components/ui/button'
+import { SessionKindAvatar, SessionKindPill } from './session-kind-brand'
 
 const log = createClientLogger('ConversationList')
 
@@ -301,9 +302,10 @@ export function ConversationList({ onNewConversation: _onNewConversation }: Conv
         <div className="flex items-center gap-2 w-full">
           {/* Mini avatar */}
           <div className="relative flex-shrink-0">
-            <div className="w-7 h-7 rounded-full bg-surface-2 flex items-center justify-center text-[10px] font-bold text-muted-foreground">
-              {displayName.charAt(0).toUpperCase()}
-            </div>
+            <SessionKindAvatar
+              kind={conv.session?.sessionKind || 'gateway'}
+              fallback={displayName.charAt(0).toUpperCase()}
+            />
             {isSessionRow && conv.session?.active && (
               <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card ${STATUS_COLORS.busy}`} />
             )}
@@ -319,9 +321,7 @@ export function ConversationList({ onNewConversation: _onNewConversation }: Conv
                   <span className={`h-2 w-2 rounded-full ${TAG_COLORS[conv.session.colorTag]}`} />
                 )}
                 {isSessionRow && conv.session?.sessionKind && conv.session.sessionKind !== 'gateway' && (
-                  <span className={`rounded px-1 py-px text-[9px] font-medium ${conv.session.sessionKind === 'codex-cli' ? 'bg-amber-500/15 text-amber-400/80' : conv.session.sessionKind === 'hermes' ? 'bg-purple-500/15 text-purple-400/80' : 'bg-primary/15 text-primary/80'}`}>
-                    {conv.session.sessionKind === 'codex-cli' ? 'CX' : conv.session.sessionKind === 'hermes' ? 'HM' : 'CC'}
-                  </span>
+                  <SessionKindPill kind={conv.session.sessionKind} />
                 )}
                 {isEditing ? (
                   <input

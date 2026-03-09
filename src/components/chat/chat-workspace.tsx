@@ -9,6 +9,7 @@ import { MessageList } from './message-list'
 import { ChatInput } from './chat-input'
 import { Button } from '@/components/ui/button'
 import { SessionMessage, shouldShowTimestamp, type SessionTranscriptMessage } from './session-message'
+import { getSessionKindLabel, SessionKindAvatar } from './session-kind-brand'
 
 const log = createClientLogger('ChatWorkspace')
 
@@ -564,10 +565,17 @@ function SessionConversationView({
       {/* Compact session info bar */}
       <div className="border-b border-border/50 px-4 py-2 text-xs text-muted-foreground">
         <div className="flex flex-wrap items-center gap-2">
+          {!isGatewaySession && (
+            <SessionKindAvatar
+              kind={session.sessionKind}
+              fallback={getSessionKindLabel(session.sessionKind).slice(0, 1)}
+              sizeClassName="w-5 h-5"
+            />
+          )}
           <span className={`rounded-full px-2 py-0.5 text-[10px] ${session.active ? 'bg-green-500/20 text-green-300' : 'bg-muted text-muted-foreground'}`}>
             {session.active ? 'active' : 'idle'}
           </span>
-          <span className="font-mono-tight">{session.sessionKind === 'codex-cli' ? 'Codex CLI' : session.sessionKind === 'hermes' ? 'Hermes Agent' : session.sessionKind === 'gateway' ? 'Gateway' : 'Claude Code'}</span>
+          <span className="font-mono-tight">{getSessionKindLabel(session.sessionKind)}</span>
           {session.model && <span className="text-muted-foreground/60">{session.model}</span>}
           {session.tokens && <span className="text-muted-foreground/60">{session.tokens}</span>}
           {session.workingDir && <span className="hidden truncate text-muted-foreground/50 sm:inline max-w-[200px]">{session.workingDir}</span>}
