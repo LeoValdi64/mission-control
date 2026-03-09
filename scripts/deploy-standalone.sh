@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+BRANCH="${BRANCH:-$(git -C "$PROJECT_ROOT" branch --show-current)}"
+PORT="${PORT:-3000}"
+HOSTNAME_VALUE="${HOSTNAME:-0.0.0.0}"
+LOG_PATH="${LOG_PATH:-/tmp/mc.log}"
+VERIFY_HOST="${VERIFY_HOST:-127.0.0.1}"
+PID_FILE="${PID_FILE:-$PROJECT_ROOT/.next/standalone/server.pid}"
+
+cd "$PROJECT_ROOT"
+
+echo "==> fetching branch $BRANCH"
+git fetch origin "$BRANCH"
+git merge --ff-only FETCH_HEAD
+
+echo "==> installing dependencies"
+pnpm install --frozen-lockfile
+
+echo "==> rebuilding standalone bundle"
+rm -rf .next
+pnpm build
+
+echo "==> stopping existing process on port $PORT (if any)"
+existing_pid="$(ss -ltnp 2>/dev/null | awk -v port=":$PORT" '
+  index($0, port) {
+    if (match($0, /pid=([0-9]+)/, m)) {
+      print m[1]
+      exit
+    }
+  }
+')"
+if [[ -n "${existing_pid:-}" ]]; then
+  kill "$existing_pid"
+  sleep 2
+fi
+
+echo "==> starting standalone server"
+set -a
+if [[ -f .env ]]; then
+  # shellcheck disable=SC1091
+  source .env
+fi
+if [[ -f .env.local ]]; then
+  # shellcheck disable=SC1091
+  source .env.local
+fi
+set +a
+
+PORT="$PORT" HOSTNAME="$HOSTNAME_VALUE" nohup bash "$PROJECT_ROOT/scripts/start-standalone.sh" >"$LOG_PATH" 2>&1 &
+new_pid=$!
+echo "$new_pid" > "$PID_FILE"
+sleep 3
+
+echo "==> verifying process and static assets"
+curl -fsS "http://$VERIFY_HOST:$PORT/login" >/dev/null
+
+css_path="$(curl -fsS "http://$VERIFY_HOST:$PORT/login" | grep -o '/_next/static/chunks/[^"]*\.css' | head -1)"
+if [[ -z "${css_path:-}" ]]; then
+  echo "error: no css asset found in rendered login HTML" >&2
+  exit 1
+fi
+
+content_type="$(curl -fsSI "http://$VERIFY_HOST:$PORT$css_path" | awk 'BEGIN{IGNORECASE=1} /^content-type:/ {print $2}' | tr -d '\r')"
+if [[ "${content_type:-}" != text/css* ]]; then
+  echo "error: css asset served with unexpected content-type: ${content_type:-missing}" >&2
+  exit 1
+fi
+
+echo "==> deployed commit $(git rev-parse --short HEAD)"
+echo "    pid=$new_pid port=$PORT css=$css_path"

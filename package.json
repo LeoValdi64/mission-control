@@ -6,6 +6,8 @@
     "dev": "next dev --hostname 127.0.0.1 --port ${PORT:-3000}",
     "build": "next build",
     "start": "next start --hostname 0.0.0.0 --port ${PORT:-3000}",
+    "start:standalone": "bash scripts/start-standalone.sh",
+    "deploy:standalone": "bash scripts/deploy-standalone.sh",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
