@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   try {
     const result = await validateBody(request, spawnAgentSchema)
     if ('error' in result) return result.error
-    const { task, model, label, timeoutSeconds } = result.data
+    const { task, model, label, timeoutSeconds, thinking, effort, maxTokens } = result.data
 
     const timeout = timeoutSeconds
 
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     // Construct the spawn command
     // Using OpenClaw's sessions_spawn function via clawdbot CLI
-    const spawnPayload = {
+    const spawnPayload: Record<string, unknown> = {
       task,
       model,
       label,
@@ -45,6 +45,20 @@ export async function POST(request: NextRequest) {
         profile: getPreferredToolsProfile(),
       },
     }
+
+    // Anthropic extended thinking & effort controls
+    if (thinking === 'adaptive') {
+      spawnPayload.thinking = 'adaptive'
+    }
+    if (effort) {
+      spawnPayload.effort = effort
+    }
+    if (maxTokens) {
+      spawnPayload.maxTokens = maxTokens
+    }
+
+    // TODO: For 1M context beta, gateway should send header
+    // anthropic-beta: context-1m-2025-08-07
 
     try {
       // Execute the spawn command (OpenClaw 2026.3.2+ defaults tools.profile to messaging).

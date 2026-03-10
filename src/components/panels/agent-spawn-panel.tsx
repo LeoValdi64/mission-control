@@ -11,6 +11,9 @@ interface SpawnFormData {
   model: string
   label: string
   timeoutSeconds: number
+  thinking: 'off' | 'adaptive'
+  effort: 'low' | 'medium' | 'high' | 'max' | ''
+  maxTokens: number
 }
 
 export function AgentSpawnPanel() {
@@ -25,7 +28,10 @@ export function AgentSpawnPanel() {
     task: '',
     model: 'sonnet',
     label: '',
-    timeoutSeconds: 300
+    timeoutSeconds: 300,
+    thinking: 'off',
+    effort: '',
+    maxTokens: 16000,
   })
 
   const [isSpawning, setIsSpawning] = useState(false)
@@ -61,12 +67,28 @@ export function AgentSpawnPanel() {
     })
 
     try {
+      const payload: Record<string, unknown> = {
+        task: formData.task,
+        model: formData.model,
+        label: formData.label,
+        timeoutSeconds: formData.timeoutSeconds,
+      }
+      if (formData.thinking === 'adaptive') {
+        payload.thinking = 'adaptive'
+      }
+      if (formData.effort) {
+        payload.effort = formData.effort
+      }
+      if (formData.maxTokens !== 16000) {
+        payload.maxTokens = formData.maxTokens
+      }
+
       const response = await fetch('/api/spawn', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       })
 
       const result = await response.json()
@@ -83,7 +105,10 @@ export function AgentSpawnPanel() {
           task: '',
           model: 'sonnet',
           label: '',
-          timeoutSeconds: 300
+          timeoutSeconds: 300,
+          thinking: 'off',
+          effort: '',
+          maxTokens: 16000,
         })
 
         // Refresh history
@@ -146,7 +171,16 @@ export function AgentSpawnPanel() {
               </label>
               <select
                 value={formData.model}
-                onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
+                onChange={(e) => {
+                  const newModel = availableModels.find(m => m.alias === e.target.value)
+                  setFormData(prev => ({
+                    ...prev,
+                    model: e.target.value,
+                    thinking: newModel?.supportsThinking ? prev.thinking : 'off',
+                    effort: newModel?.supportsEffort ? prev.effort : '',
+                    maxTokens: Math.min(prev.maxTokens, newModel?.maxOutput || 8192),
+                  }))
+                }}
                 className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                 disabled={isSpawning}
               >
@@ -160,8 +194,74 @@ export function AgentSpawnPanel() {
                 <div className="mt-2 text-sm text-muted-foreground">
                   <div>Provider: {selectedModel.provider}</div>
                   <div>Cost: ${selectedModel.costPer1k}/1k tokens</div>
+                  <div>Context: {(selectedModel.contextWindow / 1000).toFixed(0)}k{selectedModel.maxContextWindow ? ` (up to ${(selectedModel.maxContextWindow / 1000).toFixed(0)}k beta)` : ''}</div>
                 </div>
               )}
+            </div>
+
+            {/* Thinking Mode */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Thinking Mode
+              </label>
+              <select
+                value={formData.thinking}
+                onChange={(e) => setFormData(prev => ({ ...prev, thinking: e.target.value as 'off' | 'adaptive' }))}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                disabled={isSpawning || !selectedModel?.supportsThinking}
+              >
+                <option value="off">Off</option>
+                <option value="adaptive">Adaptive</option>
+              </select>
+              {!selectedModel?.supportsThinking && (
+                <div className="mt-1 text-sm text-muted-foreground">
+                  Thinking is not supported by this model
+                </div>
+              )}
+            </div>
+
+            {/* Effort Level */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Effort Level
+              </label>
+              <select
+                value={formData.effort}
+                onChange={(e) => setFormData(prev => ({ ...prev, effort: e.target.value as SpawnFormData['effort'] }))}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                disabled={isSpawning || !selectedModel?.supportsEffort}
+              >
+                <option value="">Default (no override)</option>
+                {(selectedModel?.supportedEffortLevels || []).map((level) => (
+                  <option key={level} value={level}>
+                    {level.charAt(0).toUpperCase() + level.slice(1)}{level === 'max' ? ' (Opus only)' : ''}
+                  </option>
+                ))}
+              </select>
+              {!selectedModel?.supportsEffort && (
+                <div className="mt-1 text-sm text-muted-foreground">
+                  Effort control is not supported by this model
+                </div>
+              )}
+            </div>
+
+            {/* Max Output Tokens */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Max Output Tokens
+              </label>
+              <input
+                type="number"
+                min="1024"
+                max={selectedModel?.maxOutput || 8192}
+                value={formData.maxTokens}
+                onChange={(e) => setFormData(prev => ({ ...prev, maxTokens: parseInt(e.target.value) || 16000 }))}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                disabled={isSpawning}
+              />
+              <div className="mt-1 text-sm text-muted-foreground">
+                Max for this model: {(selectedModel?.maxOutput || 8192).toLocaleString()} tokens
+              </div>
             </div>
 
             {/* Label Input */}

@@ -84,6 +84,12 @@ export interface ModelConfig {
   provider: string
   description: string
   costPer1k: number
+  contextWindow: number
+  maxContextWindow?: number
+  maxOutput: number
+  supportsThinking: boolean
+  supportsEffort: boolean
+  supportedEffortLevels?: string[]
 }
 
 // Mission Control Phase 2 Types

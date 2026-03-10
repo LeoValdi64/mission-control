@@ -394,6 +394,10 @@ async function getAvailableModels() {
           provider: 'ollama',
           description: 'Local model',
           costPer1k: 0.0,
+          contextWindow: 128000,
+          maxOutput: 8192,
+          supportsThinking: false,
+          supportsEffort: false,
           size: parts[1] || 'unknown'
         }
       })

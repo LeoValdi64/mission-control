@@ -151,6 +151,9 @@ export const spawnAgentSchema = z.object({
   model: z.string().min(1, 'Model is required'),
   label: z.string().min(1, 'Label is required'),
   timeoutSeconds: z.number().min(10).max(3600).default(300),
+  thinking: z.enum(['off', 'adaptive']).optional(),
+  effort: z.enum(['low', 'medium', 'high', 'max']).optional(),
+  maxTokens: z.number().min(1024).max(128000).optional(),
 })
 
 export const createUserSchema = z.object({
