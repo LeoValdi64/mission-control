@@ -1,0 +1,45 @@
+import { describe, expect, it } from 'vitest'
+import { parseOpenClawDoctorOutput } from '@/lib/openclaw-doctor'
+
+describe('parseOpenClawDoctorOutput', () => {
+  it('marks warning output as fixable and extracts bullet issues', () => {
+    const result = parseOpenClawDoctorOutput(`
+Config warnings
+- tools.exec.safeBins includes interpreter/runtime 'bun' without profile
+- tools.exec.safeBins includes interpreter/runtime 'python3' without profile
+Run: openclaw doctor --fix
+`, 0)
+
+    expect(result.healthy).toBe(false)
+    expect(result.level).toBe('warning')
+    expect(result.canFix).toBe(true)
+    expect(result.issues).toEqual([
+      "tools.exec.safeBins includes interpreter/runtime 'bun' without profile",
+      "tools.exec.safeBins includes interpreter/runtime 'python3' without profile",
+    ])
+  })
+
+  it('marks invalid config output as an error', () => {
+    const result = parseOpenClawDoctorOutput(`
+Invalid config at /home/openclaw/.openclaw/openclaw.json:
+- <root>: Unrecognized key: "test"
+Config invalid
+File: $OPENCLAW_HOME/openclaw.json
+Problem:
+- <root>: Unrecognized key: "test"
+Run: openclaw doctor --fix
+`, 1)
+
+    expect(result.healthy).toBe(false)
+    expect(result.level).toBe('error')
+    expect(result.summary).toContain('Unrecognized key')
+  })
+
+  it('marks clean output as healthy', () => {
+    const result = parseOpenClawDoctorOutput('OK: configuration valid', 0)
+
+    expect(result.healthy).toBe(true)
+    expect(result.level).toBe('healthy')
+    expect(result.canFix).toBe(false)
+  })
+})

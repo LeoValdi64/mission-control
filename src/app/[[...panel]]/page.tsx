@@ -42,6 +42,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { LocalModeBanner } from '@/components/layout/local-mode-banner'
 import { UpdateBanner } from '@/components/layout/update-banner'
 import { OpenClawUpdateBanner } from '@/components/layout/openclaw-update-banner'
+import { OpenClawDoctorBanner } from '@/components/layout/openclaw-doctor-banner'
 import { OnboardingWizard } from '@/components/onboarding/onboarding-wizard'
 import { Loader } from '@/components/ui/loader'
 import { ProjectManagerModal } from '@/components/modals/project-manager-modal'
@@ -327,6 +328,7 @@ export default function Home() {
             <LocalModeBanner />
             <UpdateBanner />
             <OpenClawUpdateBanner />
+            <OpenClawDoctorBanner />
           </>
         )}
         <main

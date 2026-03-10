@@ -1,0 +1,95 @@
+import { NextResponse } from 'next/server'
+import { requireRole } from '@/lib/auth'
+import { runOpenClaw } from '@/lib/command'
+import { getDatabase } from '@/lib/db'
+import { logger } from '@/lib/logger'
+import { parseOpenClawDoctorOutput } from '@/lib/openclaw-doctor'
+
+function getCommandDetail(error: unknown): { detail: string; code: number | null } {
+  const err = error as {
+    stdout?: string
+    stderr?: string
+    message?: string
+    code?: number | null
+  }
+
+  return {
+    detail: [err?.stdout, err?.stderr, err?.message].filter(Boolean).join('\n').trim(),
+    code: typeof err?.code === 'number' ? err.code : null,
+  }
+}
+
+function isMissingOpenClaw(detail: string): boolean {
+  return /enoent|not installed|not reachable|command not found/i.test(detail)
+}
+
+export async function GET(request: Request) {
+  const auth = requireRole(request, 'admin')
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
+  }
+
+  try {
+    const result = await runOpenClaw(['doctor'], { timeoutMs: 15000 })
+    return NextResponse.json(parseOpenClawDoctorOutput(`${result.stdout}\n${result.stderr}`, result.code ?? 0), {
+      headers: { 'Cache-Control': 'no-store' },
+    })
+  } catch (error) {
+    const { detail, code } = getCommandDetail(error)
+    if (isMissingOpenClaw(detail)) {
+      return NextResponse.json({ error: 'OpenClaw is not installed or not reachable' }, { status: 400 })
+    }
+
+    return NextResponse.json(parseOpenClawDoctorOutput(detail, code ?? 1), {
+      headers: { 'Cache-Control': 'no-store' },
+    })
+  }
+}
+
+export async function POST(request: Request) {
+  const auth = requireRole(request, 'admin')
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
+  }
+
+  try {
+    const fixResult = await runOpenClaw(['doctor', '--fix'], { timeoutMs: 120000 })
+    const postFix = await runOpenClaw(['doctor'], { timeoutMs: 15000 })
+    const status = parseOpenClawDoctorOutput(`${postFix.stdout}\n${postFix.stderr}`, postFix.code ?? 0)
+
+    try {
+      const db = getDatabase()
+      db.prepare(
+        'INSERT INTO audit_log (action, actor, detail) VALUES (?, ?, ?)'
+      ).run(
+        'openclaw.doctor.fix',
+        auth.user.username,
+        JSON.stringify({ level: status.level, healthy: status.healthy, issues: status.issues })
+      )
+    } catch {
+      // Non-critical.
+    }
+
+    return NextResponse.json({
+      success: true,
+      output: `${fixResult.stdout}\n${fixResult.stderr}`.trim(),
+      status,
+    })
+  } catch (error) {
+    const { detail, code } = getCommandDetail(error)
+    if (isMissingOpenClaw(detail)) {
+      return NextResponse.json({ error: 'OpenClaw is not installed or not reachable' }, { status: 400 })
+    }
+
+    logger.error({ err: error }, 'OpenClaw doctor fix failed')
+
+    return NextResponse.json(
+      {
+        error: 'OpenClaw doctor fix failed',
+        detail,
+        status: parseOpenClawDoctorOutput(detail, code ?? 1),
+      },
+      { status: 500 }
+    )
+  }
+}
