@@ -9,7 +9,7 @@ if (currentMajor < MIN_NODE_MAJOR) {
   console.error(
     [
       `error: Mission Control requires Node ${MIN_NODE_MAJOR} or later, but found ${current}.`,
-      'use `nvm use 22` (recommended LTS) or any later version before installing, building, or starting the app.',
+      'use `nvm use 22` (or your version manager equivalent) before installing, building, or starting the app.',
     ].join('\n')
   )
   process.exit(1)
